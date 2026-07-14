@@ -36,7 +36,7 @@
   <label><input type="checkbox" id="labels"> part labels</label>
   <label><input type="checkbox" id="spin"> auto-rotate</label>
   <label><input type="checkbox" id="water"> 🌊 water mode (show waterline)</label>
-  <label><input type="checkbox" id="ghost" checked> 🫥 x-ray hull (see body fit)</label>
+  <label><input type="checkbox" id="ghost"> 🫥 x-ray hull (see body fit)</label>
   <hr style="border-color:#26456f">
   <div style="font-size:12px;opacity:.85">Width across props <b>14.7 ft</b><br>Length <b>8.5 ft</b><br>Height <b>~5.5 ft</b><br>Empty (as drawn) <b>~156 kg</b></div>
   <div class="tot" id="tot">$0</div>
@@ -96,7 +96,7 @@ waterGrp.visible = false;
 // materials
 const M = {
   carbon: new THREE.MeshStandardMaterial({color:0x1c1f26, metalness:.5, roughness:.4}),
-  shell:  new THREE.MeshStandardMaterial({color:0x2a2e38, metalness:.4, roughness:.45, transparent:true, opacity:.2, side:THREE.DoubleSide}),
+  shell:  new THREE.MeshStandardMaterial({color:0x2a2e38, metalness:.45, roughness:.4, side:THREE.DoubleSide}),
   carbonL:new THREE.MeshStandardMaterial({color:0x2a2e37, metalness:.45, roughness:.45}),
   silver: new THREE.MeshStandardMaterial({color:0xafb8c4, metalness:.8, roughness:.28}),
   gold:   new THREE.MeshStandardMaterial({color:0xd8b24a, metalness:.85, roughness:.3}),
@@ -118,6 +118,33 @@ function tube(p1,p2,r,mat){
   m.position.copy(p1).addScaledVector(d,.5);
   m.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),d.clone().normalize());
   m.castShadow=true; return m;
+}
+// loft ONE smooth continuous fuselage from a set of cross-section stations
+function loftHull(stations, mat){
+  const M=24, verts=[], idx=[];
+  const rings=stations.map(s=>{const r=[];for(let i=0;i<M;i++){const a=Math.PI*2*i/M;r.push([s.x, s.cy+s.h*Math.sin(a), s.w*Math.cos(a)]);}return r;});
+  rings.forEach(r=>r.forEach(p=>verts.push(p[0],p[1],p[2])));
+  for(let s=0;s<rings.length-1;s++)for(let i=0;i<M;i++){
+    const a=s*M+i,b=s*M+(i+1)%M,c=(s+1)*M+i,d=(s+1)*M+(i+1)%M;idx.push(a,c,b,b,c,d);}
+  // nose + tail caps
+  const nose=stations[stations.length-1], tail=stations[0];
+  const ni=verts.length/3; verts.push(nose.x+120,nose.cy,0);
+  for(let i=0;i<M;i++){const b=(rings.length-1)*M+i,c=(rings.length-1)*M+(i+1)%M;idx.push(b,ni,c);}
+  const ti=verts.length/3; verts.push(tail.x-100,tail.cy,0);
+  for(let i=0;i<M;i++){const b=i,c=(i+1)%M;idx.push(c,ti,b);}
+  const g=new THREE.BufferGeometry();
+  g.setAttribute('position',new THREE.Float32BufferAttribute(verts,3));
+  g.setIndex(idx); g.computeVertexNormals();
+  const m=new THREE.Mesh(g,mat); m.castShadow=true; return m;
+}
+// loft ONLY the top arc (canopy glass that hugs the body silhouette)
+function loftCanopyTop(stations, mat){
+  const M=16, a0=Math.PI*0.20, a1=Math.PI*0.80, verts=[], idx=[];
+  const rings=stations.map(s=>{const r=[];for(let i=0;i<M;i++){const a=a0+(a1-a0)*i/(M-1);r.push([s.x, s.cy+s.h*1.02*Math.sin(a), s.w*1.02*Math.cos(a)]);}return r;});
+  rings.forEach(r=>r.forEach(p=>verts.push(p[0],p[1],p[2])));
+  for(let s=0;s<rings.length-1;s++)for(let i=0;i<M-1;i++){const a=s*M+i,b=s*M+i+1,c=(s+1)*M+i,d=(s+1)*M+i+1;idx.push(a,c,b,b,c,d);}
+  const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(verts,3));g.setIndex(idx);g.computeVertexNormals();
+  return new THREE.Mesh(g,mat);
 }
 function makeLabel(t){
   const c=document.createElement('canvas'),x=c.getContext('2d');
@@ -153,51 +180,46 @@ for(const x of [-500,500])for(const y of [-360,360]){const s=new THREE.Mesh(new 
 const tubG=part('Cockpit tub (waterproof)',3500,'22 kg',
  'Sealed waterproof carbon shell around the pilot — IP-rated against rain and spray, electronics stay dry. Aerodynamic nose, faired sides, room for one pilot + a small cargo bay.',
  new THREE.Vector3(700,0,0),new THREE.Vector3(700,box_h+150,0));
-{const wall=(x,y,z,sx,sy,sz)=>{const m=new THREE.Mesh(new THREE.BoxGeometry(sx,sy,sz),M.shell);m.position.set(x,y,z);m.castShadow=true;tubG.add(m);};
- // sealed belly / lower hull
- const belly=new THREE.Mesh(new THREE.CapsuleGeometry(360,1350,8,20),M.shell);
- belly.rotation.z=Math.PI/2;belly.position.set(180,box_h-40,0);belly.scale.set(1,1,.62);belly.castShadow=true;tubG.add(belly);
- // side walls (enclose the pilot up to shoulder)
- wall(250,box_h+150,455, 1180,430,50);
- wall(250,box_h+150,-455, 1180,430,50);
- // rear bulkhead (behind seat/cargo)
- wall(-360,box_h+230,0, 55,560,930);
- // footwell front wall
- wall(870,box_h+110,0, 55,320,820);
- // short rounded prow (no more beak) — an ellipsoid that blends off the belly
- const nose=new THREE.Mesh(new THREE.SphereGeometry(360,24,18),M.shell);
- nose.scale.set(1.25,1,.62);nose.position.set(900,box_h-40,0);nose.castShadow=true;tubG.add(nose);
- // ---- GLASS CANOPY: low, elongated fighter-style bubble (not a beach ball) ----
- const dome=new THREE.Mesh(new THREE.SphereGeometry(1,36,26),M.glass);
- dome.scale.set(900,380,455);dome.position.set(150,box_h+360,0);tubG.add(dome);
- // raked windscreen front
- const ws=new THREE.Mesh(new THREE.BoxGeometry(30,420,860),M.glass);
- ws.position.set(690,box_h+280,0);ws.rotation.z=-.72;tubG.add(ws);
+{// ONE smooth lofted fuselage — nose to tail, natural canopy hump. Single flowing line, no two ovals.
+ const bodyStations=[
+   {x:-1300, cy:box_h+105, w:70,  h:70},
+   {x:-850,  cy:box_h+120, w:300, h:230},
+   {x:-350,  cy:box_h+235, w:435, h:375},
+   {x:150,   cy:box_h+300, w:465, h:455},
+   {x:650,   cy:box_h+180, w:415, h:335},
+   {x:1050,  cy:box_h+80,  w:280, h:215},
+   {x:1330,  cy:box_h+35,  w:90,  h:135},
+ ];
+ tubG.add(loftHull(bodyStations, M.shell));
+ // glass canopy that follows the SAME silhouette (windscreen + roof) — not a separate egg
+ const canStations=[
+   {x:700,  cy:box_h+175, w:360, h:325},
+   {x:300,  cy:box_h+275, w:435, h:435},
+   {x:-120, cy:box_h+295, w:445, h:450},
+   {x:-460, cy:box_h+225, w:380, h:365},
+ ];
+ tubG.add(loftCanopyTop(canStations, M.glass));
 }
 
 // FRAMED CANOPY — carbon fighter-style frame over the glass (openable, hinged at rear)
 const cfG=part('Framed canopy (openable)',1400,'8 kg',
  'Carbon-fiber space-frame canopy: flat tinted glass panels held between structural frame bows and rails, hinged at the rear to lift open like a fighter jet. Latches and seals at the front — waterproof when closed.',
  new THREE.Vector3(-150,650,0),new THREE.Vector3(150,box_h+620,0));
-{const F=M.carbon;
- // two sill rails (canopy base, left + right)
- cfG.add(tube(new THREE.Vector3(730,box_h+150,455),new THREE.Vector3(-330,box_h+360,455),20,F));
- cfG.add(tube(new THREE.Vector3(730,box_h+150,-455),new THREE.Vector3(-330,box_h+360,-455),20,F));
- cfG.add(tube(new THREE.Vector3(730,box_h+150,455),new THREE.Vector3(730,box_h+150,-455),20,F)); // front sill
- // top spine rail
- cfG.add(tube(new THREE.Vector3(700,box_h+300,0),new THREE.Vector3(-330,box_h+410,0),20,F));
- // cross bows (fighter-canopy hoops) — built from tube segments so they read solid
- const bow=(x,cy,ry,rz)=>{const N=14;let prev=null;
-   for(let i=0;i<=N;i++){const a=Math.PI*i/N;const pt=new THREE.Vector3(x,cy+ry*Math.sin(a),rz*Math.cos(a));
-     if(prev)cfG.add(tube(prev,pt,15,F));prev=pt;}};
- bow(690,box_h+150,175,455);   // windscreen bow (front)
- bow(200,box_h+180,205,455);   // mid bow
- bow(-280,box_h+230,165,430);  // rear bow
- // rear hinge (canopy pivots here) + front latch
- const hinge=new THREE.Mesh(new THREE.CylinderGeometry(28,28,880,16),M.silver);
- hinge.rotation.x=Math.PI/2; hinge.position.set(-330,box_h+360,0); hinge.castShadow=true; cfG.add(hinge);
- const latch=new THREE.Mesh(new THREE.BoxGeometry(70,50,120),M.silver);
- latch.position.set(745,box_h+160,0); cfG.add(latch);
+{const F=M.carbon, a0=Math.PI*0.20, a1=Math.PI*0.80;
+ // same stations as the canopy glass, so the frame OUTLINES the glass edge and latches to the body
+ const cs=[{x:700,cy:box_h+175,w:360,h:325},{x:300,cy:box_h+275,w:435,h:435},{x:-120,cy:box_h+295,w:445,h:450},{x:-460,cy:box_h+225,w:380,h:365}];
+ const P=(s,a)=>new THREE.Vector3(s.x, s.cy+s.h*1.05*Math.sin(a), s.w*1.05*Math.cos(a));
+ // two sill rails (frame edges that sit flush on the fuselage where glass meets body)
+ for(let i=0;i<cs.length-1;i++){cfG.add(tube(P(cs[i],a0),P(cs[i+1],a0),17,F));cfG.add(tube(P(cs[i],a1),P(cs[i+1],a1),17,F));}
+ // windscreen frame (front arc) + rear frame (rear arc)
+ const arc=(s)=>{let prev=null;for(let k=0;k<=8;k++){const a=a0+(a1-a0)*k/8;const p=P(s,a);if(prev)cfG.add(tube(prev,p,17,F));prev=p;}};
+ arc(cs[0]); arc(cs[cs.length-1]);
+ // one clean center spine following the roofline
+ let prev=null;for(const s of cs){const p=P(s,Math.PI/2);if(prev)cfG.add(tube(prev,p,15,F));prev=p;}
+ // rear hinge (canopy lifts here) + front latch onto the fuselage
+ cfG.add(tube(P(cs[cs.length-1],a0),P(cs[cs.length-1],a1),22,M.silver));
+ const latch=new THREE.Mesh(new THREE.BoxGeometry(60,44,120),M.silver);
+ latch.position.copy(P(cs[0],Math.PI/2)).add(new THREE.Vector3(30,-30,0)); cfG.add(latch);
 }
 
 // FLOOR + SEAT + HARNESS + PILOT
