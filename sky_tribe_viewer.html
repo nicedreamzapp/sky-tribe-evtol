@@ -136,13 +136,29 @@ for(const x of [-500,500])for(const y of [-360,360]){const s=new THREE.Mesh(new 
 const tubG=part('Cockpit tub (waterproof)',3500,'22 kg',
  'Sealed waterproof carbon shell around the pilot — IP-rated against rain and spray, electronics stay dry. Aerodynamic nose, faired sides, room for one pilot + a small cargo bay.',
  new THREE.Vector3(700,0,0),new THREE.Vector3(700,box_h+150,0));
-{const geo=new THREE.BoxGeometry(1,1,1);
- const add=(x,y,z,sx,sy,sz,rot)=>{const m=new THREE.Mesh(geo,M.carbon);m.position.set(x,y,z);m.scale.set(sx,sy,sz);if(rot)m.rotation.y=rot;m.castShadow=true;tubG.add(m);};
- // sculpt with a hull of boxes
- const h=new THREE.Mesh(new THREE.CapsuleGeometry(360,1500,8,20),M.carbon);
- h.rotation.z=Math.PI/2;h.position.set(150,box_h,0);h.scale.set(1,1,.62);h.castShadow=true;tubG.add(h);
- const nose=new THREE.Mesh(new THREE.ConeGeometry(300,600,20),M.carbon);
- nose.rotation.z=-Math.PI/2;nose.position.set(1180,box_h,0);nose.scale.set(1,1,.6);nose.castShadow=true;tubG.add(nose);
+{const wall=(x,y,z,sx,sy,sz)=>{const m=new THREE.Mesh(new THREE.BoxGeometry(sx,sy,sz),M.carbon);m.position.set(x,y,z);m.castShadow=true;tubG.add(m);};
+ // sealed belly / lower hull
+ const belly=new THREE.Mesh(new THREE.CapsuleGeometry(360,1350,8,20),M.carbon);
+ belly.rotation.z=Math.PI/2;belly.position.set(180,box_h-40,0);belly.scale.set(1,1,.62);belly.castShadow=true;tubG.add(belly);
+ // side walls (enclose the pilot up to shoulder)
+ wall(250,box_h+150,455, 1180,430,50);
+ wall(250,box_h+150,-455, 1180,430,50);
+ // rear bulkhead (behind seat/cargo)
+ wall(-360,box_h+230,0, 55,560,930);
+ // footwell front wall
+ wall(870,box_h+110,0, 55,320,820);
+ // aero nose
+ const nose=new THREE.Mesh(new THREE.ConeGeometry(305,640,22),M.carbon);
+ nose.rotation.z=-Math.PI/2;nose.position.set(1200,box_h+20,0);nose.scale.set(1,1,.6);nose.castShadow=true;tubG.add(nose);
+ // ---- GLASS CANOPY: the enclosure over the pilot (windscreen + roof + side glass) ----
+ const dome=new THREE.Mesh(new THREE.SphereGeometry(1,36,26),M.glass);
+ dome.scale.set(760,560,490);dome.position.set(230,box_h+470,0);tubG.add(dome);
+ const ws=new THREE.Mesh(new THREE.BoxGeometry(30,520,900),M.glass);
+ ws.position.set(720,box_h+430,0);ws.rotation.z=-.62;tubG.add(ws);
+ // canopy frame rails (so the enclosure reads clearly)
+ for(const z of [-470,470]) tubG.add(tube(new THREE.Vector3(800,box_h+330,z),new THREE.Vector3(-330,box_h+640,z),20,M.silver));
+ tubG.add(tube(new THREE.Vector3(800,box_h+330,470),new THREE.Vector3(800,box_h+330,-470),20,M.silver));
+ tubG.add(tube(new THREE.Vector3(-330,box_h+640,470),new THREE.Vector3(-330,box_h+640,-470),20,M.silver));
 }
 
 // FLOOR + SEAT + HARNESS + PILOT
