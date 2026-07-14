@@ -96,7 +96,7 @@ waterGrp.visible = false;
 // materials
 const M = {
   carbon: new THREE.MeshStandardMaterial({color:0x1c1f26, metalness:.5, roughness:.4}),
-  shell:  new THREE.MeshStandardMaterial({color:0x2a2e38, metalness:.45, roughness:.4, side:THREE.DoubleSide}),
+  shell:  new THREE.MeshStandardMaterial({color:0x525b68, metalness:.5, roughness:.42, side:THREE.DoubleSide}),
   carbonL:new THREE.MeshStandardMaterial({color:0x2a2e37, metalness:.45, roughness:.45}),
   silver: new THREE.MeshStandardMaterial({color:0xafb8c4, metalness:.8, roughness:.28}),
   gold:   new THREE.MeshStandardMaterial({color:0xd8b24a, metalness:.85, roughness:.3}),
@@ -105,7 +105,7 @@ const M = {
   batt:   new THREE.MeshStandardMaterial({color:0x33373f, roughness:.55, metalness:.35}),
   green:  new THREE.MeshStandardMaterial({color:0x39c46f, roughness:.5, emissive:0x08240f}),
   seat:   new THREE.MeshStandardMaterial({color:0x14161b, roughness:.7}),
-  glass:  new THREE.MeshPhysicalMaterial({color:0x9fd8ff, transparent:true, opacity:.22, roughness:.06, metalness:0}),
+  glass:  new THREE.MeshPhysicalMaterial({color:0xbfe6ff, transparent:true, opacity:.30, roughness:.03, metalness:0, clearcoat:1, clearcoatRoughness:.04, side:THREE.DoubleSide}),
   screen: new THREE.MeshStandardMaterial({color:0x0a2a44, emissive:0x1e6fb0, emissiveIntensity:.7}),
   red:    new THREE.MeshStandardMaterial({color:0xd63a4f, roughness:.5}),
   strap:  new THREE.MeshStandardMaterial({color:0x9a1c1c, roughness:.8}),
