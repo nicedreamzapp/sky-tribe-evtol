@@ -34,8 +34,9 @@
   <b>EXPLODE</b><input type="range" id="explode" min="0" max="100" value="0">
   <label><input type="checkbox" id="pilot" checked> show pilot (scale)</label>
   <label><input type="checkbox" id="labels"> part labels</label>
-  <label><input type="checkbox" id="spin" checked> auto-rotate</label>
+  <label><input type="checkbox" id="spin"> auto-rotate</label>
   <label><input type="checkbox" id="water"> 🌊 water mode (show waterline)</label>
+  <label><input type="checkbox" id="ghost" checked> 🫥 x-ray hull (see body fit)</label>
   <hr style="border-color:#26456f">
   <div style="font-size:12px;opacity:.85">Width across props <b>14.7 ft</b><br>Length <b>8.5 ft</b><br>Height <b>~5.5 ft</b><br>Empty (as drawn) <b>~156 kg</b></div>
   <div class="tot" id="tot">$0</div>
@@ -55,15 +56,15 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x0a0f1a);
 const camera = new THREE.PerspectiveCamera(46, innerWidth/innerHeight, 5, 40000);
-camera.position.set(3600, 2100, 3600);
+camera.position.set(2900, 1500, 3400);
 const renderer = new THREE.WebGLRenderer({antialias:true});
 renderer.setSize(innerWidth, innerHeight);
 renderer.setPixelRatio(devicePixelRatio);
 renderer.shadowMap.enabled = true;
 document.body.appendChild(renderer.domElement);
 const controls = new OrbitControls(camera, renderer.domElement);
-controls.target.set(0, 500, 0);
-controls.autoRotate = true; controls.autoRotateSpeed = 0.9;
+controls.target.set(150, 550, 0);
+controls.autoRotate = false; controls.autoRotateSpeed = 0.9;
 
 scene.add(new THREE.HemisphereLight(0xcfe3ff, 0x1a2436, 1.15));
 const key = new THREE.DirectionalLight(0xffffff, 2.0);
@@ -83,13 +84,19 @@ const grid = new THREE.GridHelper(14000,56,0x2a3d5c,0x18243c); grid.position.y=-
 // belly submerged (~2.7x reserve buoyancy). Waterline sits ~at the base of
 // the cockpit coaming — cabin, seat, pilot all stay dry.
 const WL = 55; // model mm — computed waterline height
+const waterGrp = new THREE.Group(); scene.add(waterGrp);
 const water = new THREE.Mesh(new THREE.CircleGeometry(9000,64),
-  new THREE.MeshPhysicalMaterial({color:0x1c6ea0, transparent:true, opacity:.55, roughness:.15, metalness:0, side:THREE.DoubleSide}));
-water.rotation.x = -Math.PI/2; water.position.y = WL; water.visible = false; scene.add(water);
+  new THREE.MeshPhysicalMaterial({color:0x1c6ea0, transparent:true, opacity:.6, roughness:.12, metalness:0, side:THREE.DoubleSide}));
+water.rotation.x = -Math.PI/2; water.position.y = WL; waterGrp.add(water);
+// bright ring marking exactly where the waterline crosses the hull
+const wlRing = new THREE.Mesh(new THREE.TorusGeometry(1500,16,8,64), new THREE.MeshBasicMaterial({color:0x7fe9ff}));
+wlRing.rotation.x = -Math.PI/2; wlRing.position.y = WL+2; waterGrp.add(wlRing);
+waterGrp.visible = false;
 
 // materials
 const M = {
   carbon: new THREE.MeshStandardMaterial({color:0x1c1f26, metalness:.5, roughness:.4}),
+  shell:  new THREE.MeshStandardMaterial({color:0x2a2e38, metalness:.4, roughness:.45, transparent:true, opacity:.2, side:THREE.DoubleSide}),
   carbonL:new THREE.MeshStandardMaterial({color:0x2a2e37, metalness:.45, roughness:.45}),
   silver: new THREE.MeshStandardMaterial({color:0xafb8c4, metalness:.8, roughness:.28}),
   gold:   new THREE.MeshStandardMaterial({color:0xd8b24a, metalness:.85, roughness:.3}),
@@ -146,9 +153,9 @@ for(const x of [-500,500])for(const y of [-360,360]){const s=new THREE.Mesh(new 
 const tubG=part('Cockpit tub (waterproof)',3500,'22 kg',
  'Sealed waterproof carbon shell around the pilot — IP-rated against rain and spray, electronics stay dry. Aerodynamic nose, faired sides, room for one pilot + a small cargo bay.',
  new THREE.Vector3(700,0,0),new THREE.Vector3(700,box_h+150,0));
-{const wall=(x,y,z,sx,sy,sz)=>{const m=new THREE.Mesh(new THREE.BoxGeometry(sx,sy,sz),M.carbon);m.position.set(x,y,z);m.castShadow=true;tubG.add(m);};
+{const wall=(x,y,z,sx,sy,sz)=>{const m=new THREE.Mesh(new THREE.BoxGeometry(sx,sy,sz),M.shell);m.position.set(x,y,z);m.castShadow=true;tubG.add(m);};
  // sealed belly / lower hull
- const belly=new THREE.Mesh(new THREE.CapsuleGeometry(360,1350,8,20),M.carbon);
+ const belly=new THREE.Mesh(new THREE.CapsuleGeometry(360,1350,8,20),M.shell);
  belly.rotation.z=Math.PI/2;belly.position.set(180,box_h-40,0);belly.scale.set(1,1,.62);belly.castShadow=true;tubG.add(belly);
  // side walls (enclose the pilot up to shoulder)
  wall(250,box_h+150,455, 1180,430,50);
@@ -157,18 +164,40 @@ const tubG=part('Cockpit tub (waterproof)',3500,'22 kg',
  wall(-360,box_h+230,0, 55,560,930);
  // footwell front wall
  wall(870,box_h+110,0, 55,320,820);
- // aero nose
- const nose=new THREE.Mesh(new THREE.ConeGeometry(305,640,22),M.carbon);
- nose.rotation.z=-Math.PI/2;nose.position.set(1200,box_h+20,0);nose.scale.set(1,1,.6);nose.castShadow=true;tubG.add(nose);
- // ---- GLASS CANOPY: the enclosure over the pilot (windscreen + roof + side glass) ----
+ // short rounded prow (no more beak) — an ellipsoid that blends off the belly
+ const nose=new THREE.Mesh(new THREE.SphereGeometry(360,24,18),M.shell);
+ nose.scale.set(1.25,1,.62);nose.position.set(900,box_h-40,0);nose.castShadow=true;tubG.add(nose);
+ // ---- GLASS CANOPY: low, elongated fighter-style bubble (not a beach ball) ----
  const dome=new THREE.Mesh(new THREE.SphereGeometry(1,36,26),M.glass);
- dome.scale.set(760,560,490);dome.position.set(230,box_h+470,0);tubG.add(dome);
- const ws=new THREE.Mesh(new THREE.BoxGeometry(30,520,900),M.glass);
- ws.position.set(720,box_h+430,0);ws.rotation.z=-.62;tubG.add(ws);
- // canopy frame rails (so the enclosure reads clearly)
- for(const z of [-470,470]) tubG.add(tube(new THREE.Vector3(800,box_h+330,z),new THREE.Vector3(-330,box_h+640,z),20,M.silver));
- tubG.add(tube(new THREE.Vector3(800,box_h+330,470),new THREE.Vector3(800,box_h+330,-470),20,M.silver));
- tubG.add(tube(new THREE.Vector3(-330,box_h+640,470),new THREE.Vector3(-330,box_h+640,-470),20,M.silver));
+ dome.scale.set(900,380,455);dome.position.set(150,box_h+360,0);tubG.add(dome);
+ // raked windscreen front
+ const ws=new THREE.Mesh(new THREE.BoxGeometry(30,420,860),M.glass);
+ ws.position.set(690,box_h+280,0);ws.rotation.z=-.72;tubG.add(ws);
+}
+
+// FRAMED CANOPY — carbon fighter-style frame over the glass (openable, hinged at rear)
+const cfG=part('Framed canopy (openable)',1400,'8 kg',
+ 'Carbon-fiber space-frame canopy: flat tinted glass panels held between structural frame bows and rails, hinged at the rear to lift open like a fighter jet. Latches and seals at the front — waterproof when closed.',
+ new THREE.Vector3(-150,650,0),new THREE.Vector3(150,box_h+620,0));
+{const F=M.carbon;
+ // two sill rails (canopy base, left + right)
+ cfG.add(tube(new THREE.Vector3(730,box_h+150,455),new THREE.Vector3(-330,box_h+360,455),20,F));
+ cfG.add(tube(new THREE.Vector3(730,box_h+150,-455),new THREE.Vector3(-330,box_h+360,-455),20,F));
+ cfG.add(tube(new THREE.Vector3(730,box_h+150,455),new THREE.Vector3(730,box_h+150,-455),20,F)); // front sill
+ // top spine rail
+ cfG.add(tube(new THREE.Vector3(700,box_h+300,0),new THREE.Vector3(-330,box_h+410,0),20,F));
+ // cross bows (fighter-canopy hoops) — built from tube segments so they read solid
+ const bow=(x,cy,ry,rz)=>{const N=14;let prev=null;
+   for(let i=0;i<=N;i++){const a=Math.PI*i/N;const pt=new THREE.Vector3(x,cy+ry*Math.sin(a),rz*Math.cos(a));
+     if(prev)cfG.add(tube(prev,pt,15,F));prev=pt;}};
+ bow(690,box_h+150,175,455);   // windscreen bow (front)
+ bow(200,box_h+180,205,455);   // mid bow
+ bow(-280,box_h+230,165,430);  // rear bow
+ // rear hinge (canopy pivots here) + front latch
+ const hinge=new THREE.Mesh(new THREE.CylinderGeometry(28,28,880,16),M.silver);
+ hinge.rotation.x=Math.PI/2; hinge.position.set(-330,box_h+360,0); hinge.castShadow=true; cfG.add(hinge);
+ const latch=new THREE.Mesh(new THREE.BoxGeometry(70,50,120),M.silver);
+ latch.position.set(745,box_h+160,0); cfG.add(latch);
 }
 
 // FLOOR + SEAT + HARNESS + PILOT
@@ -181,12 +210,33 @@ const seatG=part('Seat + 4-point harness',600,'5 kg',
  const head=new THREE.Mesh(new THREE.BoxGeometry(60,150,300),M.seat);head.position.set(-195,box_h+430,0);head.castShadow=true;seatG.add(head);
  // harness straps (V over chest)
  for(const z of [-110,110]){seatG.add(tube(new THREE.Vector3(-175,box_h+380,z*.4),new THREE.Vector3(90,box_h-10,z),16,M.strap));}
- // pilot silhouette — seated low, knees up, feet forward
+ // pilot — realistic seated body (torso, 2 arms to controls, 2 bent legs, feet on pedals)
  const p=new THREE.Group();p.userData.pilot=true;
- const torso=new THREE.Mesh(new THREE.CapsuleGeometry(115,340,8,16),M.pilot);torso.position.set(40,box_h+170,0);torso.rotation.z=.1;p.add(torso);
- const head2=new THREE.Mesh(new THREE.SphereGeometry(95,20,16),M.pilot);head2.position.set(0,box_h+500,0);p.add(head2);
- const thigh=new THREE.Mesh(new THREE.CapsuleGeometry(85,360,8,12),M.pilot);thigh.rotation.z=Math.PI/2.4;thigh.position.set(340,box_h-40,0);p.add(thigh);
- const shin=new THREE.Mesh(new THREE.CapsuleGeometry(70,320,8,12),M.pilot);shin.rotation.z=Math.PI/2.1;shin.position.set(620,box_h-120,0);p.add(shin);
+ const suit=new THREE.MeshStandardMaterial({color:0x4a6ea8,roughness:.6,metalness:.1});
+ const helm=new THREE.MeshStandardMaterial({color:0xe8eef6,roughness:.32});
+ const bone=(a,b,r,mat)=>{const A=new THREE.Vector3(...a),B=new THREE.Vector3(...b),d=new THREE.Vector3().subVectors(B,A),L=Math.max(1,d.length()-r);
+   const m=new THREE.Mesh(new THREE.CapsuleGeometry(r,L,6,12),mat||suit);m.position.copy(A).addScaledVector(d,.5);
+   m.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),d.clone().normalize());m.castShadow=true;return m;};
+ const blob=(x,y,z,r,sx,sy,sz,mat)=>{const m=new THREE.Mesh(new THREE.SphereGeometry(r,16,12),mat||suit);m.position.set(x,y,z);m.scale.set(sx,sy,sz);m.castShadow=true;return m;};
+ // pelvis + torso + chest
+ p.add(blob(0,box_h-30,0,130,1,.8,1.1));
+ p.add(bone([0,box_h-30,0],[-70,box_h+300,0],118));
+ p.add(blob(-55,box_h+230,0,140,.9,1.1,1.25));
+ // neck + helmeted head (proportional, not a bobblehead)
+ p.add(bone([-70,box_h+320,0],[-92,box_h+400,0],46));
+ p.add(blob(-96,box_h+478,0,108,1,1.05,.95,helm));
+ // arms reaching forward-down to the controls
+ p.add(bone([-70,box_h+300,-195],[160,box_h+80,-205],56)); // R upper arm
+ p.add(bone([160,box_h+80,-205],[300,box_h+128,-200],46));  // R forearm -> stick
+ p.add(bone([-70,box_h+300,195],[160,box_h+80,205],56));    // L upper arm
+ p.add(bone([160,box_h+80,205],[285,box_h+58,200],46));     // L forearm -> throttle
+ // legs: thighs (hips->knees) then shins (knees->feet on pedals)
+ p.add(bone([30,box_h-30,-120],[415,box_h+20,-145],86));  // R thigh
+ p.add(bone([30,box_h-30,120],[415,box_h+20,145],86));    // L thigh
+ p.add(blob(415,box_h+20,-145,80,1,1,1)); p.add(blob(415,box_h+20,145,80,1,1,1)); // knees
+ p.add(bone([415,box_h+20,-145],[790,box_h-105,-115],66)); // R shin
+ p.add(bone([415,box_h+20,145],[790,box_h-105,115],66));   // L shin
+ for(const z of [-115,115]){const ft=new THREE.Mesh(new THREE.BoxGeometry(200,72,115),suit);ft.position.set(860,box_h-150,z);ft.castShadow=true;p.add(ft);}
  seatG.add(p);window._pilot=p;
 }
 
@@ -260,7 +310,13 @@ const cargoG=part('Cargo bay',400,'3 kg',
  'Sealed compartment behind the seat — ~60 L, good for ~15-20 kg of minimal cargo (gear bag, cooler, tools). Waterproof latching hatch. Weight here counts against useful load, not empty weight.',
  new THREE.Vector3(-500,300,0),new THREE.Vector3(-480,box_h+250,0));
 {const cb=new THREE.Mesh(new THREE.BoxGeometry(360,300,440),M.carbonL);cb.position.set(-480,box_h+180,0);cb.castShadow=true;cargoG.add(cb);
- const lid=new THREE.Mesh(new THREE.BoxGeometry(370,20,450),M.carbon);lid.position.set(-480,box_h+340,0);cargoG.add(lid);}
+ // rear hinge
+ const hg=new THREE.Mesh(new THREE.CylinderGeometry(16,16,450,12),M.silver);hg.rotation.x=Math.PI/2;hg.position.set(-655,box_h+330,0);cargoG.add(hg);
+ // hatch lid shown OPEN (lifts up from the rear hinge) — so you can clearly reach in
+ const lid=new THREE.Mesh(new THREE.BoxGeometry(380,22,450),M.carbon);
+ lid.position.set(-470,box_h+470,0);lid.rotation.z=0.7;lid.castShadow=true;cargoG.add(lid);
+ const handle=new THREE.Mesh(new THREE.TorusGeometry(45,10,8,16,Math.PI),M.silver);
+ handle.rotation.set(Math.PI/2,0,0.7);handle.position.set(-300,box_h+560,0);cargoG.add(handle);}
 
 // BALLISTIC CHUTE
 const chG=part('Ballistic parachute',5000,'9 kg (exempt)',
@@ -281,11 +337,12 @@ const $=id=>document.getElementById(id), card=document.getElementById('card');
 $('explode').addEventListener('input',e=>{const t=e.target.value/100;for(const p of parts)p.g.position.copy(p.explode).multiplyScalar(t);});
 $('labels').addEventListener('change',e=>{craft.traverse(o=>{if(o.userData.isLabel)o.visible=e.target.checked;});});
 $('spin').addEventListener('change',e=>controls.autoRotate=e.target.checked);
-$('water').addEventListener('change',e=>{water.visible=e.target.checked;
+$('water').addEventListener('change',e=>{waterGrp.visible=e.target.checked;
   if(e.target.checked){$('cName').textContent='Buoyancy / waterline';$('cPrice').textContent='floats';
     $('cMass').textContent='all-up ~241 kg (156 empty + 85 pilot)';
     $('cSpec').textContent='Sealed hull holds ~650 L; needs to displace only ~241 L, so it floats with the bottom ~20 cm of belly submerged — ~2.7x reserve buoyancy. Waterline sits at the base of the cockpit coaming; cabin, seat, and pilot stay dry. Wide beam + low battery = stable, floats level like a jet-ski hull. Skids hang below the surface.';
     card.style.display='block';}});
+$('ghost').addEventListener('change',e=>{M.shell.opacity=e.target.checked?0.2:1;M.shell.transparent=e.target.checked;M.shell.needsUpdate=true;});
 $('pilot').addEventListener('change',e=>{if(window._pilot)window._pilot.visible=e.target.checked;});
 function flyTo(pos,tgt){controls.autoRotate=false;$('spin').checked=false;
   camera.position.set(...pos);controls.target.set(...tgt);controls.update();}

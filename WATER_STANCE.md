@@ -24,6 +24,20 @@ No, and here's why:
 - **Low center of gravity** — the ~58 kg battery sits at the keel, well below the waterline, acting like ballast.
 - CG below the center of buoyancy + wide beam = it self-levels and resists roll.
 
+## Sealing philosophy (two-tier — from the water-drone research)
+- **Fully sealed & dry:** the whole cabin area — pilot, seat, battery, the three flight computers, all wiring. Nothing in here ever touches water.
+- **Allowed to get wet:** the motors (brushless motors run wet fine with a corrosion coating — proven 2 months submerged in saltwater by JHU-APL), the skids, and the outer lower hull. These are designed to be splashed.
+- So water can touch the *outside* and the *motors*; it can never reach the cabin.
+
+## Propel on water: blades-in-water vs blades-in-air — which is faster?
+**Blades in AIR (airboat mode) wins — it's faster AND safer.** Here's the honest physics:
+- Aircraft propellers are *air* propellers. Water is ~800× denser than air. Dip a spinning aircraft prop into water and it **cavitates, stalls, loses most of its thrust, and risks shattering** — it's a terrible water propeller and a real damage risk.
+- **Airboat mode** keeps the props in the air (where they're efficient), tilts the craft a few degrees, and pushes air backward to glide across the surface — exactly how Everglades fan-boats work. Same props, no water contact, no damage. This is the faster, proven method.
+- There's also a geometry reality: with 2.7× reserve buoyancy the craft floats HIGH, so the blades (1.4 m up) sit well above the water anyway. To dip them you'd have to nearly swamp it.
+- **If we ever want serious water speed,** the right tool is a small dedicated underwater thruster or water-jet (most efficient *in* water) as a bolt-on — not the lift props. But for "scoot across the bay," airboat mode is the answer and costs zero extra hardware.
+
+**Verdict:** propel from the air with the blades above the water. Never drive the lift props into the water.
+
 ## Honest caveats
 - These are **estimates from the current CAD volume**, not a measured hull. The real number comes from a displacement test of the actual molded hull (drop it in water, mark the line, weigh it).
 - 2.7× reserve is comfortable; even a partial breach still floats.
