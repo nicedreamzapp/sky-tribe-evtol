@@ -122,11 +122,14 @@ function tube(p1,p2,r,mat){
   m.castShadow=true; return m;
 }
 // loft ONE smooth continuous fuselage from a set of cross-section stations
-function loftHull(stations, mat){
+function loftHull(stations, mat, openFrom, openTo){
   const M=24, verts=[], idx=[];
   const rings=stations.map(s=>{const r=[];for(let i=0;i<M;i++){const a=Math.PI*2*i/M;r.push([s.x, s.cy+s.h*Math.sin(a), s.w*Math.cos(a)]);}return r;});
   rings.forEach(r=>r.forEach(p=>verts.push(p[0],p[1],p[2])));
   for(let s=0;s<rings.length-1;s++)for(let i=0;i<M;i++){
+    const xMid=(stations[s].x+stations[s+1].x)/2, ang=Math.PI*2*i/M;
+    // leave the TOP open across the cockpit/cargo region so the canopy reveals the interior
+    if(openFrom!==undefined && xMid>openFrom && xMid<openTo && Math.sin(ang)>0.30) continue;
     const a=s*M+i,b=s*M+(i+1)%M,c=(s+1)*M+i,d=(s+1)*M+(i+1)%M;idx.push(a,c,b,b,c,d);}
   // nose + tail caps
   const nose=stations[stations.length-1], tail=stations[0];
@@ -192,7 +195,7 @@ const tubG=part('Cockpit tub (waterproof)',3500,'22 kg',
    {x:1050,  cy:box_h+80,  w:280, h:215},
    {x:1330,  cy:box_h+35,  w:90,  h:135},
  ];
- tubG.add(loftHull(bodyStations, M.shell));
+ tubG.add(loftHull(bodyStations, M.shell, -720, 760));
  // glass canopy that follows the SAME silhouette (windscreen + roof) — not a separate egg
  const canStations=[
    {x:700,  cy:box_h+175, w:360, h:325},
@@ -333,14 +336,13 @@ window._foils=foilG;
    w.scale.set(chord,26,span); w.position.set(x,GY,0); w.castShadow=true; foilG.add(w);
    // flat-bottom pad look + end plates so it reads as ski + foil
    for(const z of [-span,span]){const ep=new THREE.Mesh(new THREE.SphereGeometry(1,10,8),M.carbon);ep.scale.set(chord*.8,70,20);ep.position.set(x,GY+30,z);foilG.add(ep);}};
- // main foil-ski (forward, under CG, wide) on two struts
- strut(-120,-560); strut(-120,560); wing(-120,560,150);
- // rear foil-ski (stabilizer) on two struts
- strut(-760,-380); strut(-760,380); wing(-760,380,120);
+ // main foil-ski FORWARD, rear foil-ski FAR BACK — wide fore-aft stance so it won't tip on landing
+ strut(430,-560); strut(430,560); wing(430,560,150);
+ strut(-1050,-380); strut(-1050,380); wing(-1050,380,120);
  // water motor torpedo pod + prop on the main foil
- const pod=new THREE.Mesh(new THREE.CapsuleGeometry(55,240,6,12),M.batt);pod.rotation.z=Math.PI/2;pod.position.set(70,GY,0);pod.castShadow=true;foilG.add(pod);
+ const pod=new THREE.Mesh(new THREE.CapsuleGeometry(55,240,6,12),M.batt);pod.rotation.z=Math.PI/2;pod.position.set(620,GY,0);pod.castShadow=true;foilG.add(pod);
  const propD=new THREE.Mesh(new THREE.CylinderGeometry(95,95,10,20),new THREE.MeshBasicMaterial({color:0x5fd0ff,transparent:true,opacity:.28}));
- propD.rotation.z=Math.PI/2;propD.position.set(-70,GY,0);foilG.add(propD);}
+ propD.rotation.z=Math.PI/2;propD.position.set(490,GY,0);foilG.add(propD);}
 
 // CARGO BAY
 const cargoG=part('Open cargo area',400,'2 kg',
