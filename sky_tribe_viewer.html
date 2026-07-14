@@ -37,6 +37,7 @@
   <label><input type="checkbox" id="spin"> auto-rotate</label>
   <label><input type="checkbox" id="water"> 🌊 water mode (show waterline)</label>
   <label><input type="checkbox" id="ghost"> 🫥 x-ray hull (see body fit)</label>
+  <label><input type="checkbox" id="foils" checked> ⚓ hydrofoils deployed</label>
   <hr style="border-color:#26456f">
   <div style="font-size:12px;opacity:.85">Width across props <b>14.7 ft</b><br>Length <b>8.5 ft</b><br>Height <b>~5.5 ft</b><br>Empty (as drawn) <b>~156 kg</b></div>
   <div class="tot" id="tot">$0</div>
@@ -105,7 +106,7 @@ const M = {
   batt:   new THREE.MeshStandardMaterial({color:0x33373f, roughness:.55, metalness:.35}),
   green:  new THREE.MeshStandardMaterial({color:0x39c46f, roughness:.5, emissive:0x08240f}),
   seat:   new THREE.MeshStandardMaterial({color:0x14161b, roughness:.7}),
-  glass:  new THREE.MeshPhysicalMaterial({color:0xbfe6ff, transparent:true, opacity:.30, roughness:.03, metalness:0, clearcoat:1, clearcoatRoughness:.04, side:THREE.DoubleSide}),
+  glass:  new THREE.MeshPhysicalMaterial({color:0xcdeeff, transparent:true, opacity:.16, roughness:.02, metalness:0, clearcoat:1, clearcoatRoughness:.03, side:THREE.DoubleSide}),
   screen: new THREE.MeshStandardMaterial({color:0x0a2a44, emissive:0x1e6fb0, emissiveIntensity:.7}),
   red:    new THREE.MeshStandardMaterial({color:0xd63a4f, roughness:.5}),
   strap:  new THREE.MeshStandardMaterial({color:0x9a1c1c, roughness:.8}),
@@ -139,7 +140,7 @@ function loftHull(stations, mat){
 }
 // loft ONLY the top arc (canopy glass that hugs the body silhouette)
 function loftCanopyTop(stations, mat){
-  const M=16, a0=Math.PI*0.20, a1=Math.PI*0.80, verts=[], idx=[];
+  const M=18, a0=Math.PI*0.13, a1=Math.PI*0.87, verts=[], idx=[];
   const rings=stations.map(s=>{const r=[];for(let i=0;i<M;i++){const a=a0+(a1-a0)*i/(M-1);r.push([s.x, s.cy+s.h*1.02*Math.sin(a), s.w*1.02*Math.cos(a)]);}return r;});
   rings.forEach(r=>r.forEach(p=>verts.push(p[0],p[1],p[2])));
   for(let s=0;s<rings.length-1;s++)for(let i=0;i<M-1;i++){const a=s*M+i,b=s*M+i+1,c=(s+1)*M+i,d=(s+1)*M+i+1;idx.push(a,c,b,b,c,d);}
@@ -206,7 +207,7 @@ const tubG=part('Cockpit tub (waterproof)',3500,'22 kg',
 const cfG=part('Framed canopy (openable)',1400,'8 kg',
  'Carbon-fiber space-frame canopy: flat tinted glass panels held between structural frame bows and rails, hinged at the rear to lift open like a fighter jet. Latches and seals at the front — waterproof when closed.',
  new THREE.Vector3(-150,650,0),new THREE.Vector3(150,box_h+620,0));
-{const F=M.carbon, a0=Math.PI*0.20, a1=Math.PI*0.80;
+{const F=M.carbon, a0=Math.PI*0.13, a1=Math.PI*0.87;
  // same stations as the canopy glass, so the frame OUTLINES the glass edge and latches to the body
  const cs=[{x:700,cy:box_h+175,w:360,h:325},{x:300,cy:box_h+275,w:435,h:435},{x:-120,cy:box_h+295,w:445,h:450},{x:-460,cy:box_h+245,w:410,h:400},{x:-760,cy:box_h+170,w:330,h:310}];
  const P=(s,a)=>new THREE.Vector3(s.x, s.cy+s.h*1.05*Math.sin(a), s.w*1.05*Math.cos(a));
@@ -328,6 +329,27 @@ for(const s of [-1,1]){skG.add(tube(new THREE.Vector3(-980,box_h-500,s*430),new 
  skG.add(tube(new THREE.Vector3(1000,box_h-500,s*430),new THREE.Vector3(1260,box_h-330,s*430),25,M.carbon));
  for(const x of [-400,400])skG.add(tube(new THREE.Vector3(x,box_h-40,s*360),new THREE.Vector3(x,box_h-490,s*430),25,M.carbon));}
 
+// RETRACTABLE HYDROFOILS + water motor (deploy below the skids for foiling on water)
+const foilG=part('Retractable hydrofoils + water motor',3200,'12 kg',
+ 'Main foil (forward, under CG) + rear stabilizer foil on carbon masts that drop below the skids. Underwater WINGS: at ~15-20 mph they lift the whole hull clear of the water so it flies over the surface — smooth, fast, ~70% less drag than a hull. Active flaps run by the flight computer keep it level (no hand-balancing). A small electric torpedo motor drives it up to foiling speed. Retracts flush for flight and hard-ground landing.',
+ new THREE.Vector3(0,-500,0), new THREE.Vector3(-120,box_h-1000,0));
+window._foils=foilG;
+{const strut=(x,y0,y1)=>foilG.add(tube(new THREE.Vector3(x,y0,0),new THREE.Vector3(x,y1,0),34,M.carbon));
+ // main mast + big forward foil wing (span ~1.1 m)
+ strut(-120, box_h-460, box_h-980);
+ const mainWing=new THREE.Mesh(new THREE.SphereGeometry(1,20,10),M.carbon);
+ mainWing.scale.set(110,20,560); mainWing.position.set(-120,box_h-990,0); mainWing.castShadow=true; foilG.add(mainWing);
+ // winglets
+ for(const z of [-560,560]){const wl=new THREE.Mesh(new THREE.SphereGeometry(1,12,8),M.carbon);wl.scale.set(90,90,20);wl.position.set(-120,box_h-960,z);foilG.add(wl);}
+ // rear mast + smaller stabilizer foil
+ strut(-760, box_h-460, box_h-880);
+ const rearWing=new THREE.Mesh(new THREE.SphereGeometry(1,18,10),M.carbon);
+ rearWing.scale.set(85,16,380); rearWing.position.set(-760,box_h-890,0); rearWing.castShadow=true; foilG.add(rearWing);
+ // water motor torpedo pod on the main mast + prop disc
+ const pod=new THREE.Mesh(new THREE.CapsuleGeometry(55,240,6,12),M.batt);pod.rotation.z=Math.PI/2;pod.position.set(80,box_h-990,0);pod.castShadow=true;foilG.add(pod);
+ const propD=new THREE.Mesh(new THREE.CylinderGeometry(95,95,10,20),new THREE.MeshBasicMaterial({color:0x5fd0ff,transparent:true,opacity:.25}));
+ propD.rotation.z=Math.PI/2;propD.position.set(-60,box_h-990,0);foilG.add(propD);}
+
 // CARGO BAY
 const cargoG=part('Open cargo area',400,'2 kg',
  'OPEN space behind the seat, under the canopy — a well you can drop a dog, groceries, or a gear bag into. Just a floor and low sides, open to the cabin (not a sealed box).',
@@ -362,6 +384,7 @@ $('water').addEventListener('change',e=>{waterGrp.visible=e.target.checked;
     $('cSpec').textContent='Sealed hull holds ~650 L; needs to displace only ~241 L, so it floats with the bottom ~20 cm of belly submerged — ~2.7x reserve buoyancy. Waterline sits at the base of the cockpit coaming; cabin, seat, and pilot stay dry. Wide beam + low battery = stable, floats level like a jet-ski hull. Skids hang below the surface.';
     card.style.display='block';}});
 $('ghost').addEventListener('change',e=>{M.shell.opacity=e.target.checked?0.2:1;M.shell.transparent=e.target.checked;M.shell.needsUpdate=true;});
+$('foils').addEventListener('change',e=>{if(window._foils)window._foils.visible=e.target.checked;});
 $('pilot').addEventListener('change',e=>{if(window._pilot)window._pilot.visible=e.target.checked;});
 function flyTo(pos,tgt){controls.autoRotate=false;$('spin').checked=false;
   camera.position.set(...pos);controls.target.set(...tgt);controls.update();}
