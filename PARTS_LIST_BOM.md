@@ -61,6 +61,7 @@ Masses are honest first-pass estimates. Cost is ballpark USD for one prototype. 
 | D Cockpit | 8.5 kg |
 | E Thermal (counted) | 4.3 kg |
 | **EMPTY WEIGHT (counted)** | **≈ 162 kg** |
+| **PROTOTYPE PARTS COST** | **≈ $36,600** (incl. chute; after DIY flight-control saved ~$17k vs proprietary) |
 | Part 103 limit | 115.2 kg |
 | **OVER BY** | **≈ 47 kg** |
 | (Exempt: chute 9 kg + any floats — not counted) | |

@@ -133,8 +133,8 @@ for(const x of [-500,500])for(const y of [-360,360]){const s=new THREE.Mesh(new 
 {const f=new THREE.Mesh(new THREE.BoxGeometry(1040,26,760),M.carbonL);f.position.set(0,box_h-40,0);f.castShadow=true;boxG.add(f);}
 
 // COCKPIT TUB (light shell, not sealed — water no longer required)
-const tubG=part('Cockpit tub',3500,'20 kg',
- 'Open carbon tub / fairing around the pilot. Lighter now that water-landing is dropped — no sealing mass. Aerodynamic nose, faired sides.',
+const tubG=part('Cockpit tub (waterproof)',3500,'22 kg',
+ 'Sealed waterproof carbon shell around the pilot — IP-rated against rain and spray, electronics stay dry. Aerodynamic nose, faired sides, room for one pilot + a small cargo bay.',
  new THREE.Vector3(700,0,0),new THREE.Vector3(700,box_h+150,0));
 {const geo=new THREE.BoxGeometry(1,1,1);
  const add=(x,y,z,sx,sy,sz,rot)=>{const m=new THREE.Mesh(geo,M.carbon);m.position.set(x,y,z);m.scale.set(sx,sy,sz);if(rot)m.rotation.y=rot;m.castShadow=true;tubG.add(m);};
@@ -226,6 +226,13 @@ const skG=part('Helicopter skids',600,'6 kg',
 for(const s of [-1,1]){skG.add(tube(new THREE.Vector3(-980,box_h-500,s*430),new THREE.Vector3(1000,box_h-500,s*430),27,M.carbon));
  skG.add(tube(new THREE.Vector3(1000,box_h-500,s*430),new THREE.Vector3(1260,box_h-330,s*430),25,M.carbon));
  for(const x of [-400,400])skG.add(tube(new THREE.Vector3(x,box_h-40,s*360),new THREE.Vector3(x,box_h-490,s*430),25,M.carbon));}
+
+// CARGO BAY
+const cargoG=part('Cargo bay',400,'3 kg',
+ 'Sealed compartment behind the seat — ~60 L, good for ~15-20 kg of minimal cargo (gear bag, cooler, tools). Waterproof latching hatch. Weight here counts against useful load, not empty weight.',
+ new THREE.Vector3(-500,300,0),new THREE.Vector3(-480,box_h+250,0));
+{const cb=new THREE.Mesh(new THREE.BoxGeometry(360,300,440),M.carbonL);cb.position.set(-480,box_h+180,0);cb.castShadow=true;cargoG.add(cb);
+ const lid=new THREE.Mesh(new THREE.BoxGeometry(370,20,450),M.carbon);lid.position.set(-480,box_h+340,0);cargoG.add(lid);}
 
 // BALLISTIC CHUTE
 const chG=part('Ballistic parachute',5000,'9 kg (exempt)',
