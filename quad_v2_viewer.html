@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Sky Tribe Quad v2 — Interactive CAD</title>
+<style>
+  html,body{margin:0;height:100%;overflow:hidden;background:#0b1220;font-family:-apple-system,Helvetica,sans-serif}
+  #hud{position:fixed;top:14px;left:16px;color:#cfe3ff;z-index:3;user-select:none}
+  #hud h1{font-size:17px;margin:0 0 3px;font-weight:600}
+  #hud p{font-size:12px;margin:0;opacity:.65}
+  #controls{position:fixed;top:14px;right:16px;z-index:3;background:rgba(13,22,40,.85);
+    border:1px solid #24406b;border-radius:12px;padding:14px 16px;color:#cfe3ff;font-size:13px;width:230px}
+  #controls label{display:block;margin:8px 0}
+  #controls input[type=range]{width:100%}
+  #info{position:fixed;bottom:16px;right:16px;z-index:3;background:rgba(13,22,40,.92);
+    border:1px solid #24406b;border-radius:12px;padding:14px 16px;color:#e6f0ff;font-size:13px;
+    width:300px;display:none;line-height:1.5}
+  #info h2{font-size:15px;margin:0 0 6px;color:#7fc4ff}
+  #info .mass{color:#ffc46b;font-size:12px;margin-top:6px}
+  #hint{position:fixed;bottom:16px;left:16px;color:#cfe3ff;font-size:12px;opacity:.6;z-index:3}
+</style>
+</head>
+<body>
+<div id="hud"><h1>Sky Tribe Quad v2 — amphibious</h1>
+<p>rotors raised overhead · boat hull · sponsons · water thruster</p></div>
+<div id="controls">
+  <b>EXPLODE</b>
+  <input type="range" id="explode" min="0" max="100" value="0">
+  <label><input type="checkbox" id="labels" checked> part labels</label>
+  <label><input type="checkbox" id="spin" checked> auto-rotate</label>
+  <label><input type="checkbox" id="water"> water mode</label>
+  <label><input type="checkbox" id="scale" checked> scale refs (ft)</label>
+  <hr style="border-color:#24406b">
+  <b>DIMENSIONS</b>
+  <div style="font-size:12px;line-height:1.7;opacity:.85">
+    Width across props: <b>14.7 ft</b><br>
+    Hull length: <b>8.5 ft</b><br>
+    Rotor plane: <b>6 ft 11 in</b> up<br>
+    Total height: <b>~8.7 ft</b><br>
+    Prop diameter: <b>62 in</b> ×4
+  </div>
+</div>
+<div id="info"><h2 id="iName"></h2><div id="iSpec"></div><div class="mass" id="iMass"></div></div>
+<div id="hint">click any part for its spec · drag to spin · scroll to zoom</div>
+
+<script type="importmap">
+{"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js",
+"three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/"}}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0b1220);
+scene.fog = new THREE.Fog(0x0b1220, 11000, 20000);
+const camera = new THREE.PerspectiveCamera(48, innerWidth/innerHeight, 10, 40000);
+camera.position.set(4300, 3000, 4300);
+const renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(devicePixelRatio);
+document.body.appendChild(renderer.domElement);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 800, 0);
+controls.autoRotate = true; controls.autoRotateSpeed = 1.0;
+
+scene.add(new THREE.HemisphereLight(0xbcd8ff, 0x223044, 1.15));
+const sun = new THREE.DirectionalLight(0xffffff, 1.7);
+sun.position.set(2600, 4200, 1400); scene.add(sun);
+const grid = new THREE.GridHelper(14000, 56, 0x2b3d5c, 0x1a2740);
+grid.position.y = -530; scene.add(grid);
+
+// water plane (toggle)
+const water = new THREE.Mesh(new THREE.PlaneGeometry(14000, 14000),
+  new THREE.MeshBasicMaterial({color:0x1e5f8a, transparent:true, opacity:.28, side:THREE.DoubleSide}));
+water.rotation.x = -Math.PI/2; water.position.y = -420; water.visible = false;
+scene.add(water);
+
+// ---------- materials ----------
+const M = {
+  hull:   new THREE.MeshPhysicalMaterial({color:0xe8e4d8, roughness:.35, metalness:.05}),
+  canopy: new THREE.MeshPhysicalMaterial({color:0xbfe8ff, transparent:true, opacity:.32, roughness:.08}),
+  carbon: new THREE.MeshStandardMaterial({color:0x23272e, roughness:.45, metalness:.35}),
+  silver: new THREE.MeshStandardMaterial({color:0x9aa4b2, metalness:.75, roughness:.3}),
+  gold:   new THREE.MeshStandardMaterial({color:0xd4af37, metalness:.85, roughness:.3}),
+  blade:  new THREE.MeshStandardMaterial({color:0x14171c, roughness:.55}),
+  disc:   new THREE.MeshBasicMaterial({color:0x87ceeb, transparent:true, opacity:.10, side:THREE.DoubleSide}),
+  batt:   new THREE.MeshStandardMaterial({color:0xff9c2e, roughness:.5}),
+  avio:   new THREE.MeshStandardMaterial({color:0x39c46f, roughness:.5}),
+  black:  new THREE.MeshStandardMaterial({color:0x101215, roughness:.7}),
+  red:    new THREE.MeshStandardMaterial({color:0xd63a4f, roughness:.5}),
+  navy:   new THREE.MeshStandardMaterial({color:0x27408b, roughness:.5}),
+  pilot:  new THREE.MeshStandardMaterial({color:0x4a6fa5, transparent:true, opacity:.35})
+};
+
+// ---------- helpers ----------
+function tube(p1, p2, r, mat) {
+  const dir = new THREE.Vector3().subVectors(p2, p1);
+  const len = dir.length();
+  const mesh = new THREE.Mesh(new THREE.CylinderGeometry(r, r, len, 20), mat);
+  mesh.position.copy(p1).addScaledVector(dir, 0.5);
+  mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0), dir.clone().normalize());
+  return mesh;
+}
+function makeLabel(text) {
+  const c = document.createElement('canvas');
+  const ctx = c.getContext('2d');
+  ctx.font = '600 44px -apple-system, Helvetica';
+  const w = Math.ceil(ctx.measureText(text).width) + 44;
+  c.width = w; c.height = 78;
+  const g = c.getContext('2d');
+  g.fillStyle = 'rgba(10,20,38,0.82)';
+  g.strokeStyle = '#3a6db5'; g.lineWidth = 3;
+  g.beginPath(); g.roundRect(2, 2, w-4, 74, 16); g.fill(); g.stroke();
+  g.font = '600 44px -apple-system, Helvetica';
+  g.fillStyle = '#dceaff'; g.textBaseline = 'middle';
+  g.fillText(text, 22, 41);
+  const tex = new THREE.CanvasTexture(c);
+  const spr = new THREE.Sprite(new THREE.SpriteMaterial({map:tex, depthTest:false, transparent:true}));
+  spr.scale.set(w * 1.05, 82, 1);
+  spr.renderOrder = 99;
+  return spr;
+}
+
+// ---------- part registry ----------
+const parts = [];  // {group, name, spec, mass, explode:Vector3, home:Vector3}
+const craft = new THREE.Group(); scene.add(craft);
+function part(name, spec, mass, explode, labelAt) {
+  const g = new THREE.Group();
+  g.userData.part = {name, spec, mass};
+  const spr = makeLabel(name);
+  spr.position.copy(labelAt).add(new THREE.Vector3(0, 190, 0));
+  spr.userData.isLabel = true;
+  g.add(spr);
+  craft.add(g);
+  parts.push({group:g, name, spec, mass, explode, home:new THREE.Vector3()});
+  return g;
+}
+
+// ---------- HULL ----------
+const hullG = part('Hull — carbon monocoque',
+  'Carbon/epoxy monocoque with planing belly and shallow V keel. Fully sealed — the fuselage itself floats. Doubles as the boat.',
+  '~28 kg', new THREE.Vector3(0,0,0), new THREE.Vector3(900, 350, 0));
+{
+  const s1 = new THREE.Mesh(new THREE.SphereGeometry(450, 40, 28), M.hull);
+  s1.scale.set(1.55, 0.78, 1.0); s1.position.set(0, 300, 0); hullG.add(s1);
+  const bow = new THREE.Mesh(new THREE.SphereGeometry(280, 32, 22), M.hull);
+  bow.position.set(1080, 260, 0); bow.scale.set(1.15, 0.8, 0.95); hullG.add(bow);
+  const stern = new THREE.Mesh(new THREE.SphereGeometry(205, 32, 22), M.hull);
+  stern.position.set(-1130, 220, 0); stern.scale.set(1.2, 0.85, 0.9); hullG.add(stern);
+  const pad = new THREE.Mesh(new THREE.SphereGeometry(450, 40, 28), M.hull);
+  pad.scale.set(1.4, 0.28, 0.92); pad.position.set(0, -60, 0); hullG.add(pad);
+  const keel = new THREE.Mesh(new THREE.BoxGeometry(1850, 150, 150), M.carbon);
+  keel.rotation.x = Math.PI/4; keel.position.set(0, -170, 0); hullG.add(keel);
+}
+
+// ---------- CANOPY ----------
+const canG = part('Canopy — jettisonable',
+  'Polycarbonate bubble canopy. Jettisons for fast egress in the water — part of the "never drown" stack (can\'t-sink foam + self-righting CG + egress).',
+  '~6 kg', new THREE.Vector3(650, 800, 0), new THREE.Vector3(250, 1450, 0));
+{
+  const c = new THREE.Mesh(new THREE.SphereGeometry(410, 40, 28), M.canopy);
+  c.scale.set(1.5, 1.0, 0.95); c.position.set(250, 980, 0); canG.add(c);
+}
+
+// ---------- SPONSONS ----------
+for (const s of [-1, 1]) {
+  const g = part(s < 0 ? 'Sponson (port)' : 'Sponson (starboard)',
+    'Foam-filled composite float, ~150 L displacement each — landing gear, flotation, and crush structure in one. CANNOT sink even if holed. Part 103 weight-EXEMPT (floats are excluded from the 254 lb empty weight).',
+    '~5 kg each (exempt)', new THREE.Vector3(0, -380, s*620), new THREE.Vector3(0, -180, s*750));
+  const f = new THREE.Mesh(new THREE.SphereGeometry(160, 32, 22), M.black);
+  f.scale.set(7.5, 0.85, 1.0); f.position.set(0, -350, s*750); g.add(f);
+  for (const x of [-500, 500])
+    g.add(tube(new THREE.Vector3(x, 80, s*430), new THREE.Vector3(x, -300, s*720), 20, M.silver));
+}
+
+// ---------- ROTOR CORNERS (pylon / motor / prop per corner) ----------
+const spinBlades = [];
+for (const az of [45, 135, 225, 315]) {
+  const a = az * Math.PI/180;
+  const rx = 1450*Math.cos(a), rz = 1450*Math.sin(a);
+  const sx = Math.sign(rx), sz = Math.sign(rz);
+  const out = new THREE.Vector3(Math.cos(a), 0, Math.sin(a));
+
+  const pyG = part(`Pylon ${az}°`,
+    'Carbon tube Ø60 mm rising from the hull shoulder. Raises the rotor plane to 2.1 m — above heads and bodies on land, above spray and swimmers on water. (Rotor height does not add stability — the flight controller does — this is purely a safety geometry decision.)',
+    '~3 kg each', out.clone().multiplyScalar(420), new THREE.Vector3(rx*0.6, 1250, rz*0.6));
+  pyG.add(tube(new THREE.Vector3(sx*350, 500, sz*330), new THREE.Vector3(rx, 2010, rz), 30, M.silver));
+  const esc = new THREE.Mesh(new THREE.BoxGeometry(160, 90, 90), M.carbon);
+  esc.position.set(sx*430, 560, sz*400); pyG.add(esc);
+
+  const moG = part(`Motor ${az}° — U15XXL`,
+    'T-Motor U15XXL KV29 — 100 kg peak thrust each on 24S, ~300 A peak, $1,999/unit (verified on T-Motor\'s store July 2026). Four give ~2:1 thrust-to-weight; hover sits near half throttle. ESC: 300 A HV class at the pylon root.',
+    '~4.2 kg each', out.clone().multiplyScalar(250).add(new THREE.Vector3(0,450,0)), new THREE.Vector3(rx, 2055, rz));
+  const can = new THREE.Mesh(new THREE.CylinderGeometry(75, 75, 90, 28), M.carbon);
+  can.position.set(rx, 2055, rz); moG.add(can);
+  const inner = new THREE.Mesh(new THREE.CylinderGeometry(60, 60, 94, 28), M.gold);
+  inner.position.set(rx, 2055, rz); moG.add(inner);
+
+  const prG = part(`Rotor ${az}° — 62" prop`,
+    '62" (1.575 m) two-blade carbon prop, NS62×24 class. Disc-to-disc clearance ≈ 47 cm. Faint disc shows the swept area — the keep-out zone.',
+    '~1.2 kg each', new THREE.Vector3(0, 950, 0).add(out.clone().multiplyScalar(120)), new THREE.Vector3(rx, 2160, rz));
+  const blade = new THREE.Mesh(new THREE.BoxGeometry(1575, 8, 55), M.blade);
+  blade.position.set(rx, 2115, rz); prG.add(blade); spinBlades.push(blade);
+  const disc = new THREE.Mesh(new THREE.CylinderGeometry(788, 788, 3, 56), M.disc);
+  disc.position.set(rx, 2112, rz); prG.add(disc);
+}
+
+// ---------- BATTERY ----------
+const batG = part('Battery — 24S ~14 kWh',
+  '24S Li-ion module, ~55 kg, sealed and externally vented, mounted low and central for CG (helps self-righting on water). Realistic endurance at this scale: ~15–20 min hover (peer-reviewed physics). This is the heaviest single part — the Part 103 weight war is won or lost here.',
+  '~55 kg', new THREE.Vector3(0, -700, 0), new THREE.Vector3(-200, 60, 0));
+{
+  const b = new THREE.Mesh(new THREE.BoxGeometry(600, 260, 420), M.batt);
+  b.position.set(-200, 60, 0); batG.add(b);
+}
+
+// ---------- AVIONICS ----------
+const avG = part('Avionics — Veronte 4x',
+  'Embention Veronte 4x flight controller: three internal autopilot cores + optional fourth dissimilar core, voting arbiter, designed with no single point of failure. DO-178C/DO-254 DAL B evidences, DO-160G tested, ETSO in progress. Buyable certification paper trail.',
+  '~2 kg (+~6 kg wiring)', new THREE.Vector3(500, 420, 0), new THREE.Vector3(400, 150, 0));
+{
+  const b = new THREE.Mesh(new THREE.BoxGeometry(220, 140, 260), M.avio);
+  b.position.set(400, 150, 0); avG.add(b);
+}
+
+// ---------- SEAT + PILOT ----------
+const seatG = part('Seat + harness',
+  'Composite seat pan with 4-point harness. Blue silhouette is a 1.75 m pilot for scale. Part 103 allows exactly one occupant.',
+  '~6 kg', new THREE.Vector3(0, 420, 0), new THREE.Vector3(60, 640, 0));
+{
+  const pan = new THREE.Mesh(new THREE.BoxGeometry(430, 40, 480), M.black);
+  pan.position.set(100, 260, 0); seatG.add(pan);
+  const back = new THREE.Mesh(new THREE.BoxGeometry(40, 640, 480), M.black);
+  back.position.set(-120, 560, 0); seatG.add(back);
+  const torso = new THREE.Mesh(new THREE.CapsuleGeometry(125, 400, 8, 16), M.pilot);
+  torso.position.set(80, 600, 0); seatG.add(torso);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(100, 24, 18), M.pilot);
+  head.position.set(80, 990, 0); seatG.add(head);
+}
+
+// ---------- BALLISTIC CHUTE ----------
+const chG = part('Ballistic parachute',
+  'Whole-aircraft ballistic recovery chute, rocket-deployed. Part 103 weight-EXEMPT ("safety devices intended for deployment in a potentially catastrophic situation"). With the water-landing option and can\'t-sink floats, this completes a three-layer safety stack no competitor markets.',
+  '~9 kg (exempt)', new THREE.Vector3(-450, 900, 0), new THREE.Vector3(-700, 620, 0));
+{
+  const c = new THREE.Mesh(new THREE.CylinderGeometry(90, 90, 260, 28), M.red);
+  c.position.set(-700, 620, 0); chG.add(c);
+}
+
+// ---------- WATER THRUSTER ----------
+const thG = part('Water thruster',
+  'Electric pod thruster, ~2 kW Torqeedo class, steerable — jet-ski mode off the main pack. Quiet, shrouded, safe around swimmers. ALTERNATIVE UNDER STUDY (Matt\'s idea): "airboat mode" — taxi on the lift props at low RPM. Now that the rotors sit 7 ft up they clear the spray, so it\'s viable and saves ~5 kg; the pod still wins for swimmer safety, quiet, and reverse. Could ship as a removable module: leave it at the dock on fly days.',
+  '~5 kg', new THREE.Vector3(-800, -400, 0), new THREE.Vector3(-1350, -250, 0));
+{
+  const pod = new THREE.Mesh(new THREE.CylinderGeometry(65, 65, 340, 24), M.navy);
+  pod.rotation.z = Math.PI/2; pod.position.set(-1350, -250, 0); thG.add(pod);
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(130, 18, 12, 32), M.black);
+  ring.rotation.y = Math.PI/2; ring.position.set(-1545, -250, 0); thG.add(ring);
+}
+
+// ---------- SCALE REFERENCES (6-ft person + foot ruler) ----------
+const scaleRefs = new THREE.Group(); scene.add(scaleRefs);
+{
+  const GROUND = -530, FT = 304.8;
+  // 6-ft person standing beside the craft
+  const skin = new THREE.MeshStandardMaterial({color:0x6b8fbf, roughness:.6});
+  const body = new THREE.Mesh(new THREE.CapsuleGeometry(150, 1250, 8, 16), skin);
+  body.position.set(300, GROUND + 775, 2100); scaleRefs.add(body);
+  const head2 = new THREE.Mesh(new THREE.SphereGeometry(115, 24, 18), skin);
+  head2.position.set(300, GROUND + 1700, 2100); scaleRefs.add(head2);
+  const pTag = makeLabel("6 ft person");
+  pTag.position.set(300, GROUND + 2050, 2100); scaleRefs.add(pTag);
+  // vertical ruler, 1-ft bands, 9 ft tall
+  const matA = new THREE.MeshStandardMaterial({color:0xd63a4f, roughness:.6});
+  const matB = new THREE.MeshStandardMaterial({color:0xf2f2f2, roughness:.6});
+  for (let i = 0; i < 9; i++) {
+    const band = new THREE.Mesh(new THREE.CylinderGeometry(32, 32, FT, 16), i % 2 ? matB : matA);
+    band.position.set(2700, GROUND + (i + 0.5) * FT, 0);
+    scaleRefs.add(band);
+  }
+  for (const f of [2, 4, 6, 8]) {
+    const tag = makeLabel(f + " ft");
+    tag.position.set(3050, GROUND + f * FT, 0);
+    scaleRefs.add(tag);
+  }
+  // rotor-plane reference line marker
+  const rpTag = makeLabel("rotor plane — 6 ft 11 in");
+  rpTag.position.set(2700, 2110, 600); scaleRefs.add(rpTag);
+}
+
+// ---------- UI wiring ----------
+const $ = id => document.getElementById(id);
+const info = $('info');
+$('explode').addEventListener('input', e => {
+  const t = e.target.value / 100;
+  for (const p of parts) p.group.position.copy(p.home).addScaledVector(p.explode, t);
+});
+$('labels').addEventListener('change', e => {
+  craft.traverse(o => { if (o.userData.isLabel) o.visible = e.target.checked; });
+});
+$('spin').addEventListener('change', e => controls.autoRotate = e.target.checked);
+$('water').addEventListener('change', e => water.visible = e.target.checked);
+$('scale').addEventListener('change', e => scaleRefs.visible = e.target.checked);
+controls.addEventListener('start', () => { controls.autoRotate = false; $('spin').checked = false; });
+
+// click-to-inspect
+const ray = new THREE.Raycaster(), ptr = new THREE.Vector2();
+let downXY = null, highlighted = null;
+addEventListener('pointerdown', e => downXY = [e.clientX, e.clientY]);
+addEventListener('pointerup', e => {
+  if (!downXY || Math.hypot(e.clientX-downXY[0], e.clientY-downXY[1]) > 6) return;
+  ptr.x = (e.clientX/innerWidth)*2 - 1; ptr.y = -(e.clientY/innerHeight)*2 + 1;
+  ray.setFromCamera(ptr, camera);
+  const hits = ray.intersectObjects(craft.children, true).filter(h => !h.object.userData.isLabel && h.object.type === 'Mesh');
+  if (highlighted) { highlighted.traverse(o => { if (o.material?.emissive) o.material.emissive.setHex(0); }); highlighted = null; }
+  if (!hits.length) { info.style.display = 'none'; return; }
+  let g = hits[0].object;
+  while (g && !g.userData.part) g = g.parent;
+  if (!g) return;
+  highlighted = g;
+  g.traverse(o => { if (o.material?.emissive) { o.material = o.material.clone(); o.material.emissive.setHex(0x224a7a); } });
+  $('iName').textContent = g.userData.part.name;
+  $('iSpec').textContent = g.userData.part.spec;
+  $('iMass').textContent = 'Mass estimate: ' + g.userData.part.mass;
+  info.style.display = 'block';
+});
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth/innerHeight; camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+let spin = 0;
+renderer.setAnimationLoop(() => {
+  spin += 0.3;
+  for (const b of spinBlades) b.rotation.y = spin;
+  controls.update();
+  renderer.render(scene, camera);
+});
+</script>
+</body>
+</html>

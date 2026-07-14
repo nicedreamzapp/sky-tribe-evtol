@@ -1,0 +1,46 @@
+Sky Tribe — Open Amphibious Personal eVTOL
+Copyright (C) 2026 Matt Macosko and contributors
+
+This project is multi-licensed so that it remains free and open forever.
+Each part of the project is covered by a strongly-reciprocal ("copyleft")
+license: anyone may use, study, build, modify, and redistribute it, but
+derivatives and distributed hardware/software built from it must be shared
+back under the same terms. It cannot be taken private.
+
+SPDX-License-Identifier: CERN-OHL-S-2.0 AND GPL-3.0-or-later AND CC-BY-SA-4.0
+
+-------------------------------------------------------------------------------
+1. HARDWARE, MECHANICAL DESIGN, AND CAD  (all .scad files, geometry, BOM)
+   Licensed under CERN Open Hardware Licence Version 2 - Strongly Reciprocal
+   (CERN-OHL-S-2.0).
+   Full text: https://ohwr.org/cern_ohl_s_v2.txt
+
+   You may copy, modify, and distribute these design sources and make or
+   have made products from them, provided you pass on the complete source,
+   keep the notices, and license your modifications under CERN-OHL-S-2.0.
+
+2. SOFTWARE  (any flight-control, avionics, voting, or tooling code we write)
+   Licensed under the GNU General Public License v3.0 or later
+   (GPL-3.0-or-later).
+   Full text: https://www.gnu.org/licenses/gpl-3.0.txt
+
+   Built on and compatible with the open-source ArduPilot and PX4 projects.
+
+3. DOCUMENTATION AND RESEARCH  (README, research reports, notes, images)
+   Licensed under Creative Commons Attribution-ShareAlike 4.0 International
+   (CC-BY-SA-4.0).
+   Full text: https://creativecommons.org/licenses/by-sa/4.0/legalcode
+
+-------------------------------------------------------------------------------
+NO WARRANTY. This is experimental aircraft design. It is provided WITHOUT
+ANY WARRANTY, to the extent permitted by law. Building or operating an
+aircraft from these files is done entirely at your own risk. No person
+should ever be carried by any vehicle built from this project until it has
+been proven safe through extensive unmanned and ballasted testing. The
+authors accept no liability for any harm resulting from use of this project.
+-------------------------------------------------------------------------------
+
+To obtain the full text of any license above, see the URLs listed or run:
+  curl -L https://ohwr.org/cern_ohl_s_v2.txt          -o LICENSE-CERN-OHL-S
+  curl -L https://www.gnu.org/licenses/gpl-3.0.txt     -o LICENSE-GPL-3.0
+  curl -L https://creativecommons.org/licenses/by-sa/4.0/legalcode -o LICENSE-CC-BY-SA-4.0
