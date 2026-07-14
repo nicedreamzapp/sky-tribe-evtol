@@ -334,8 +334,13 @@ window._foils=foilG;
  const strut=(x,z)=>foilG.add(tube(new THREE.Vector3(x*.6,box_h-40,z*.55),new THREE.Vector3(x,GY+30,z),30,M.carbon));
  const wing=(x,span,chord)=>{const w=new THREE.Mesh(new THREE.SphereGeometry(1,22,10),M.carbon);
    w.scale.set(chord,26,span); w.position.set(x,GY,0); w.castShadow=true; foilG.add(w);
-   // flat-bottom pad look + end plates so it reads as ski + foil
-   for(const z of [-span,span]){const ep=new THREE.Mesh(new THREE.SphereGeometry(1,10,8),M.carbon);ep.scale.set(chord*.8,70,20);ep.position.set(x,GY+30,z);foilG.add(ep);}};
+   // BIG end-plate feet at the tips — extend well BELOW the wing so they're the ground
+   // contact (and hydrofoil tip fins). Keeps the wing AND the motor prop off the ground.
+   for(const z of [-span,span]){
+     const foot=new THREE.Mesh(new THREE.BoxGeometry(chord*1.5,190,46),M.carbon);
+     foot.position.set(x,GY-75,z); foot.castShadow=true; foilG.add(foot);
+     const pad=new THREE.Mesh(new THREE.SphereGeometry(1,12,8),M.carbon);
+     pad.scale.set(chord*0.9,34,70); pad.position.set(x,GY-175,z); pad.castShadow=true; foilG.add(pad);}};
  // main foil-ski FORWARD, rear foil-ski FAR BACK — wide fore-aft stance so it won't tip on landing
  strut(430,-560); strut(430,560); wing(430,560,150);
  strut(-1050,-380); strut(-1050,380); wing(-1050,380,120);
