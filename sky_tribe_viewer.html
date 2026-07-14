@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Sky Tribe — Interactive Build Viewer</title>
+<style>
+  html,body{margin:0;height:100%;overflow:hidden;background:#0a0f1a;font-family:-apple-system,Helvetica,sans-serif}
+  #hud{position:fixed;top:14px;left:16px;color:#dce8ff;z-index:3;user-select:none}
+  #hud h1{font-size:17px;margin:0 0 2px;font-weight:600}
+  #hud p{font-size:12px;margin:0;opacity:.6}
+  #panel{position:fixed;top:14px;right:16px;z-index:3;background:rgba(12,20,38,.9);
+    border:1px solid #26456f;border-radius:12px;padding:14px 16px;color:#dce8ff;font-size:13px;width:250px}
+  #panel b{color:#8fd0ff}
+  #panel button{width:100%;margin:4px 0;padding:8px;background:#163a63;color:#dce8ff;
+    border:1px solid #2f6099;border-radius:8px;font-size:13px;cursor:pointer}
+  #panel button:hover{background:#1d4d82}
+  #panel label{display:block;margin:6px 0;cursor:pointer}
+  #panel input[type=range]{width:100%}
+  .tot{font-size:20px;color:#7dffb0;font-weight:700;margin-top:6px}
+  #card{position:fixed;bottom:16px;right:16px;z-index:3;background:rgba(12,20,38,.95);
+    border:1px solid #26456f;border-radius:12px;padding:16px 18px;color:#eaf2ff;width:320px;display:none}
+  #card h2{margin:0 0 4px;font-size:16px;color:#8fd0ff}
+  #card .price{font-size:22px;color:#7dffb0;font-weight:700}
+  #card .mass{font-size:12px;opacity:.7;margin-bottom:6px}
+  #card p{font-size:13px;line-height:1.5;margin:6px 0 0}
+  #hint{position:fixed;bottom:16px;left:16px;color:#dce8ff;font-size:12px;opacity:.55;z-index:3}
+</style>
+</head>
+<body>
+<div id="hud"><h1>Sky Tribe — single-seat eVTOL</h1><p>click any part for its price · drag to orbit · scroll to zoom</p></div>
+<div id="panel">
+  <button id="btnCockpit">🪑 Look into cockpit</button>
+  <button id="btnOrbit">🔄 Full aircraft view</button>
+  <b>EXPLODE</b><input type="range" id="explode" min="0" max="100" value="0">
+  <label><input type="checkbox" id="pilot" checked> show pilot (scale)</label>
+  <label><input type="checkbox" id="labels"> part labels</label>
+  <label><input type="checkbox" id="spin" checked> auto-rotate</label>
+  <hr style="border-color:#26456f">
+  <div style="font-size:12px;opacity:.85">Width across props <b>14.7 ft</b><br>Length <b>8.5 ft</b><br>Height <b>~5.5 ft</b><br>Empty (as drawn) <b>~156 kg</b></div>
+  <div class="tot" id="tot">$0</div>
+  <div style="font-size:11px;opacity:.6">total parts (click to explore)</div>
+</div>
+<div id="card"><h2 id="cName"></h2><div class="price" id="cPrice"></div><div class="mass" id="cMass"></div><p id="cSpec"></p></div>
+<div id="hint">🪑 cockpit button flies you into the seat · explode slider pulls it apart</div>
+
+<script type="importmap">
+{"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js",
+"three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/"}}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0a0f1a);
+const camera = new THREE.PerspectiveCamera(46, innerWidth/innerHeight, 5, 40000);
+camera.position.set(3600, 2100, 3600);
+const renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(devicePixelRatio);
+renderer.shadowMap.enabled = true;
+document.body.appendChild(renderer.domElement);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 500, 0);
+controls.autoRotate = true; controls.autoRotateSpeed = 0.9;
+
+scene.add(new THREE.HemisphereLight(0xcfe3ff, 0x1a2436, 1.15));
+const key = new THREE.DirectionalLight(0xffffff, 2.0);
+key.position.set(2600, 4200, 1800); key.castShadow = true;
+key.shadow.mapSize.set(2048,2048); key.shadow.camera.far = 12000;
+key.shadow.camera.left=-3000;key.shadow.camera.right=3000;key.shadow.camera.top=3000;key.shadow.camera.bottom=-3000;
+scene.add(key);
+scene.add(new THREE.DirectionalLight(0x88aaff, 0.5).translateX(-2000));
+
+const ground = new THREE.Mesh(new THREE.CircleGeometry(9000,64),
+  new THREE.MeshStandardMaterial({color:0x11182a, roughness:1}));
+ground.rotation.x = -Math.PI/2; ground.position.y = -560; ground.receiveShadow = true; scene.add(ground);
+const grid = new THREE.GridHelper(14000,56,0x2a3d5c,0x18243c); grid.position.y=-559; scene.add(grid);
+
+// materials
+const M = {
+  carbon: new THREE.MeshStandardMaterial({color:0x1c1f26, metalness:.5, roughness:.4}),
+  carbonL:new THREE.MeshStandardMaterial({color:0x2a2e37, metalness:.45, roughness:.45}),
+  silver: new THREE.MeshStandardMaterial({color:0xafb8c4, metalness:.8, roughness:.28}),
+  gold:   new THREE.MeshStandardMaterial({color:0xd8b24a, metalness:.85, roughness:.3}),
+  blade:  new THREE.MeshStandardMaterial({color:0x101216, roughness:.5, metalness:.3}),
+  disc:   new THREE.MeshBasicMaterial({color:0x7fc4ff, transparent:true, opacity:.08, side:THREE.DoubleSide}),
+  batt:   new THREE.MeshStandardMaterial({color:0xff9c2e, roughness:.5, emissive:0x351d00}),
+  green:  new THREE.MeshStandardMaterial({color:0x39c46f, roughness:.5, emissive:0x08240f}),
+  seat:   new THREE.MeshStandardMaterial({color:0x14161b, roughness:.7}),
+  glass:  new THREE.MeshPhysicalMaterial({color:0x9fd8ff, transparent:true, opacity:.22, roughness:.06, metalness:0}),
+  screen: new THREE.MeshStandardMaterial({color:0x0a2a44, emissive:0x1e6fb0, emissiveIntensity:.7}),
+  red:    new THREE.MeshStandardMaterial({color:0xd63a4f, roughness:.5}),
+  strap:  new THREE.MeshStandardMaterial({color:0x9a1c1c, roughness:.8}),
+  pilot:  new THREE.MeshStandardMaterial({color:0x5b7fb0, roughness:.6, transparent:true, opacity:.5}),
+};
+
+function tube(p1,p2,r,mat){
+  const d=new THREE.Vector3().subVectors(p2,p1), L=d.length();
+  const m=new THREE.Mesh(new THREE.CylinderGeometry(r,r,L,20),mat);
+  m.position.copy(p1).addScaledVector(d,.5);
+  m.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),d.clone().normalize());
+  m.castShadow=true; return m;
+}
+function makeLabel(t){
+  const c=document.createElement('canvas'),x=c.getContext('2d');
+  x.font='600 40px -apple-system';const w=x.measureText(t).width+40;c.width=w;c.height=64;
+  const g=c.getContext('2d');g.fillStyle='rgba(10,20,38,.85)';g.strokeStyle='#3a6db5';g.lineWidth=3;
+  g.beginPath();g.roundRect(2,2,w-4,60,14);g.fill();g.stroke();
+  g.font='600 40px -apple-system';g.fillStyle='#dceaff';g.textBaseline='middle';g.fillText(t,20,34);
+  const s=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(c),depthTest:false,transparent:true}));
+  s.scale.set(w,64,1);s.renderOrder=99;s.userData.isLabel=true;return s;
+}
+
+const craft=new THREE.Group();scene.add(craft);
+const parts=[];
+function part(name,priceNum,mass,spec,explode,labelAt){
+  const g=new THREE.Group();
+  g.userData.info={name,price:priceNum,mass,spec};
+  const l=makeLabel(name);l.visible=false;l.position.copy(labelAt).add(new THREE.Vector3(0,150,0));g.add(l);
+  craft.add(g);parts.push({g,explode:explode||new THREE.Vector3()});
+  return g;
+}
+const box_h=250, RP=1400;
+
+// SPAR BOX (structure)
+const boxG=part('Central spar box',2200,'14 kg',
+ 'Carbon torque frame — 2 main + 2 cross spars. ALL four arms, the seat, and the skids bolt to this one structure. The real load path.',
+ new THREE.Vector3(0,-500,0),new THREE.Vector3(0,box_h,0));
+for(const y of [-360,360]) boxG.add(tube(new THREE.Vector3(-500,box_h,y),new THREE.Vector3(500,box_h,y),35,M.carbon));
+for(const x of [-500,500]) boxG.add(tube(new THREE.Vector3(x,box_h,-360),new THREE.Vector3(x,box_h,360),35,M.carbon));
+for(const x of [-500,500])for(const y of [-360,360]){const s=new THREE.Mesh(new THREE.SphereGeometry(52,20,16),M.silver);s.position.set(x,box_h,y);s.castShadow=true;boxG.add(s);}
+{const f=new THREE.Mesh(new THREE.BoxGeometry(1040,26,760),M.carbonL);f.position.set(0,box_h-40,0);f.castShadow=true;boxG.add(f);}
+
+// COCKPIT TUB (light shell, not sealed — water no longer required)
+const tubG=part('Cockpit tub',3500,'20 kg',
+ 'Open carbon tub / fairing around the pilot. Lighter now that water-landing is dropped — no sealing mass. Aerodynamic nose, faired sides.',
+ new THREE.Vector3(700,0,0),new THREE.Vector3(700,box_h+150,0));
+{const geo=new THREE.BoxGeometry(1,1,1);
+ const add=(x,y,z,sx,sy,sz,rot)=>{const m=new THREE.Mesh(geo,M.carbon);m.position.set(x,y,z);m.scale.set(sx,sy,sz);if(rot)m.rotation.y=rot;m.castShadow=true;tubG.add(m);};
+ // sculpt with a hull of boxes
+ const h=new THREE.Mesh(new THREE.CapsuleGeometry(360,1500,8,20),M.carbon);
+ h.rotation.z=Math.PI/2;h.position.set(150,box_h,0);h.scale.set(1,1,.62);h.castShadow=true;tubG.add(h);
+ const nose=new THREE.Mesh(new THREE.ConeGeometry(300,600,20),M.carbon);
+ nose.rotation.z=-Math.PI/2;nose.position.set(1180,box_h,0);nose.scale.set(1,1,.6);nose.castShadow=true;tubG.add(nose);
+}
+
+// FLOOR + SEAT + HARNESS + PILOT
+const seatG=part('Seat + 4-point harness',600,'5 kg',
+ 'Composite seat pan + back + headrest with a 4-point racing harness. One occupant (Part 103). Blue figure = 1.75 m pilot for scale.',
+ new THREE.Vector3(0,600,0),new THREE.Vector3(80,box_h+700,0));
+{const pan=new THREE.Mesh(new THREE.BoxGeometry(430,50,470),M.seat);pan.position.set(90,box_h+120,0);pan.castShadow=true;seatG.add(pan);
+ const back=new THREE.Mesh(new THREE.BoxGeometry(50,560,470),M.seat);back.position.set(-140,box_h+400,0);back.rotation.z=.12;back.castShadow=true;seatG.add(back);
+ const head=new THREE.Mesh(new THREE.BoxGeometry(60,150,300),M.seat);head.position.set(-175,box_h+710,0);head.castShadow=true;seatG.add(head);
+ // harness straps (V over chest)
+ for(const z of [-110,110]){seatG.add(tube(new THREE.Vector3(-150,box_h+660,z*.4),new THREE.Vector3(120,box_h+230,z),16,M.strap));}
+ // pilot silhouette
+ const p=new THREE.Group();p.userData.pilot=true;
+ const torso=new THREE.Mesh(new THREE.CapsuleGeometry(115,360,8,16),M.pilot);torso.position.set(70,box_h+430,0);torso.rotation.z=.12;p.add(torso);
+ const head2=new THREE.Mesh(new THREE.SphereGeometry(95,20,16),M.pilot);head2.position.set(30,box_h+760,0);p.add(head2);
+ const thigh=new THREE.Mesh(new THREE.CapsuleGeometry(85,340,8,12),M.pilot);thigh.rotation.z=Math.PI/2;thigh.position.set(360,box_h+180,0);p.add(thigh);
+ seatG.add(p);window._pilot=p;
+}
+
+// INSTRUMENT PANEL + STICK + PEDALS
+const panelG=part('Panel · stick · pedals',2300,'3.5 kg',
+ 'Fly-by-wire cockpit: curved glass instrument display, right-hand sidestick, left throttle, rudder pedals. All feed the triple-redundant flight computers.',
+ new THREE.Vector3(500,300,0),new THREE.Vector3(560,box_h+430,0));
+{const pnl=new THREE.Mesh(new THREE.BoxGeometry(50,240,460),M.carbon);pnl.position.set(560,box_h+430,0);pnl.rotation.z=-.5;pnl.castShadow=true;panelG.add(pnl);
+ const scr=new THREE.Mesh(new THREE.BoxGeometry(10,180,380),M.screen);scr.position.set(590,box_h+440,0);scr.rotation.z=-.5;panelG.add(scr);
+ const stick=new THREE.Mesh(new THREE.CylinderGeometry(18,22,180,12),M.seat);stick.position.set(300,box_h+250,-190);panelG.add(stick);
+ const knob=new THREE.Mesh(new THREE.SphereGeometry(30,16,12),M.red);knob.position.set(300,box_h+340,-190);panelG.add(knob);
+ const thr=new THREE.Mesh(new THREE.BoxGeometry(120,26,50),M.seat);thr.position.set(280,box_h+250,200);panelG.add(thr);
+ for(const z of [-90,90]){const ped=new THREE.Mesh(new THREE.BoxGeometry(120,70,90),M.carbonL);ped.position.set(760,box_h+40,z);ped.rotation.z=-.3;panelG.add(ped);}
+}
+
+// ARMS + MOTORS + ESC + PROPS  (priced individually per corner group)
+const spinBlades=[];
+let ci=0;
+for(const [f,s] of [[1,1],[1,-1],[-1,1],[-1,-1]]){
+ ci++;
+ const corner=new THREE.Vector3(f*500,box_h,s*360);
+ const mp=new THREE.Vector3(f*1025,RP,s*1025);
+ // arm (structure, part of frame cost — grouped but shown)
+ const armG=part(`Arm boom ${ci}`,340,'2.4 kg',
+   'Tapered carbon boom + diagonal brace, both bolted to one spar-box corner. Triangulated = stiff. Carries one motor.',
+   corner.clone().add(mp).multiplyScalar(.5).sub(new THREE.Vector3(0,0,0)).multiplyScalar(1).setY(0).setX(f*300).setZ(s*300).add(new THREE.Vector3(0,900,0)),
+   mp.clone().add(new THREE.Vector3(0,-250,0)));
+ armG.add(tube(corner,mp.clone().add(new THREE.Vector3(0,-55,0)),34,M.silver));
+ armG.add(tube(new THREE.Vector3(f*120,box_h+30,s*120),corner.clone().add(mp).multiplyScalar(.5),22,M.silver));
+ // ESC pod
+ const escG=part(`ESC ${ci}`,360,'1.1 kg',
+   'FLAME 300A high-voltage motor controller at the arm root, in the cool airflow. Potted for weather.',
+   new THREE.Vector3(f*250,box_h+120,s*250),corner.clone().add(new THREE.Vector3(f*60,90,s*60)));
+ {const e=new THREE.Mesh(new THREE.BoxGeometry(150,90,80),M.carbonL);e.position.set(f*560,box_h+70,s*560);e.castShadow=true;escG.add(e);}
+ // motor
+ const moG=part(`Motor ${ci} — U15XXL`,1999,'4.2 kg',
+   'T-Motor U15XXL KV29 — 100 kg peak thrust on 24S, ~$1,999. The single most-repeated part; four of these lift you at half throttle.',
+   new THREE.Vector3(0,400,0).add(new THREE.Vector3(f*80,0,s*80)),mp.clone().add(new THREE.Vector3(0,90,0)));
+ {const can=new THREE.Mesh(new THREE.CylinderGeometry(75,75,95,24),M.carbon);can.position.copy(mp);can.castShadow=true;moG.add(can);
+  const g=new THREE.Mesh(new THREE.CylinderGeometry(60,60,99,24),M.gold);g.position.copy(mp);moG.add(g);}
+ // prop
+ const prG=part(`Prop ${ci} — 62"`,420,'1.2 kg',
+   '62-inch (1.58 m) 2-blade carbon prop. Big prop = low disk loading = the efficiency that makes a battery quad hover-able.',
+   new THREE.Vector3(0,700,0),mp.clone().add(new THREE.Vector3(0,180,0)));
+ {const bl=new THREE.Mesh(new THREE.BoxGeometry(1575,9,55),M.blade);bl.position.copy(mp).add(new THREE.Vector3(0,60,0));bl.rotation.y=(f*35+s*55)*Math.PI/180;bl.castShadow=true;prG.add(bl);spinBlades.push(bl);
+  const d=new THREE.Mesh(new THREE.CylinderGeometry(788,788,3,48),M.disc);d.position.copy(mp).add(new THREE.Vector3(0,54,0));prG.add(d);}
+}
+
+// BATTERY
+const batG=part('Battery — 24S 14 kWh',9000,'58 kg',
+ '~860 Li-ion cells (24 in series ×36 parallel) → ~89 V, ~160 Ah. Heaviest part and the reason we\'re over the weight limit — the whole engineering fight.',
+ new THREE.Vector3(0,-750,0),new THREE.Vector3(-120,box_h+40,0));
+{const b=new THREE.Mesh(new THREE.BoxGeometry(620,200,600),M.batt);b.position.set(-120,box_h+20,0);b.castShadow=true;batG.add(b);}
+
+// FLIGHT COMPUTER
+const fcG=part('Flight computer ×3',900,'0.8 kg',
+ 'THREE open-source flight controllers (CubePilot Orange+ running ArduPilot) voting — our DIY triple-redundancy. $900 vs an $18k proprietary box. The safety brain.',
+ new THREE.Vector3(400,300,0),new THREE.Vector3(400,box_h+130,0));
+{const b=new THREE.Mesh(new THREE.BoxGeometry(180,70,220),M.green);b.position.set(400,box_h+80,0);b.castShadow=true;fcG.add(b);}
+
+// SKIDS
+const skG=part('Helicopter skids',600,'6 kg',
+ 'Two carbon rails with upswept toes, ~0.4 m ground clearance. Bolt to the spar box. Land on any rough ground.',
+ new THREE.Vector3(0,-600,0),new THREE.Vector3(0,box_h-450,0));
+for(const s of [-1,1]){skG.add(tube(new THREE.Vector3(-980,box_h-500,s*430),new THREE.Vector3(1000,box_h-500,s*430),27,M.carbon));
+ skG.add(tube(new THREE.Vector3(1000,box_h-500,s*430),new THREE.Vector3(1260,box_h-330,s*430),25,M.carbon));
+ for(const x of [-400,400])skG.add(tube(new THREE.Vector3(x,box_h-40,s*360),new THREE.Vector3(x,box_h-490,s*430),25,M.carbon));}
+
+// BALLISTIC CHUTE
+const chG=part('Ballistic parachute',5000,'9 kg (exempt)',
+ 'Whole-aircraft rocket-deployed parachute. Part 103 weight-EXEMPT. With redundant flight control it\'s the last line — pull it and the whole craft floats down.',
+ new THREE.Vector3(-500,500,0),new THREE.Vector3(-780,box_h+300,0));
+{const c=new THREE.Mesh(new THREE.CylinderGeometry(85,85,200,20),M.red);c.position.set(-780,box_h+250,0);c.castShadow=true;chG.add(c);}
+
+// ---- price total ----
+const total=parts.reduce((s,p)=>s+(p.g.userData.info.price||0),0)
+  + 3*340 + 3*360 + 3*1999 + 3*420;  // other 3 of each ×4 group already counted once; add remaining 3
+// simpler: recompute honestly
+let TOTAL=0; for(const p of parts) TOTAL+=p.g.userData.info.price||0;
+// arms/esc/motors/props were created 4× each as separate parts, so they're already summed correctly
+document.getElementById('tot').textContent='$'+TOTAL.toLocaleString();
+
+// ---- UI ----
+const $=id=>document.getElementById(id), card=document.getElementById('card');
+$('explode').addEventListener('input',e=>{const t=e.target.value/100;for(const p of parts)p.g.position.copy(p.explode).multiplyScalar(t);});
+$('labels').addEventListener('change',e=>{craft.traverse(o=>{if(o.userData.isLabel)o.visible=e.target.checked;});});
+$('spin').addEventListener('change',e=>controls.autoRotate=e.target.checked);
+$('pilot').addEventListener('change',e=>{if(window._pilot)window._pilot.visible=e.target.checked;});
+function flyTo(pos,tgt){controls.autoRotate=false;$('spin').checked=false;
+  camera.position.set(...pos);controls.target.set(...tgt);controls.update();}
+$('btnCockpit').addEventListener('click',()=>flyTo([1950,1050,60],[100,box_h+350,0]));
+$('btnOrbit').addEventListener('click',()=>flyTo([3600,2100,3600],[0,500,0]));
+controls.addEventListener('start',()=>{controls.autoRotate=false;$('spin').checked=false;});
+
+const ray=new THREE.Raycaster(),ptr=new THREE.Vector2();let down=null;
+addEventListener('pointerdown',e=>down=[e.clientX,e.clientY]);
+addEventListener('pointerup',e=>{
+  if(!down||Math.hypot(e.clientX-down[0],e.clientY-down[1])>6)return;
+  ptr.x=e.clientX/innerWidth*2-1;ptr.y=-(e.clientY/innerHeight)*2+1;ray.setFromCamera(ptr,camera);
+  const hits=ray.intersectObjects(craft.children,true).filter(h=>h.object.type==='Mesh'&&!h.object.userData.isLabel&&!h.object.userData.pilot);
+  if(!hits.length){card.style.display='none';return;}
+  let g=hits[0].object;while(g&&!g.userData.info)g=g.parent;if(!g)return;
+  const i=g.userData.info;
+  $('cName').textContent=i.name;$('cPrice').textContent=i.price?('$'+i.price.toLocaleString()):'—';
+  $('cMass').textContent='mass: '+i.mass;$('cSpec').textContent=i.spec;card.style.display='block';
+});
+addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);});
+let sp=0;
+renderer.setAnimationLoop(()=>{sp+=.3;for(const b of spinBlades)b.rotation.y=sp;controls.update();renderer.render(scene,camera);});
+</script>
+</body>
+</html>
