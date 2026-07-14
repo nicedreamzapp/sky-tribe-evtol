@@ -102,7 +102,7 @@ const M = {
   gold:   new THREE.MeshStandardMaterial({color:0xd8b24a, metalness:.85, roughness:.3}),
   blade:  new THREE.MeshStandardMaterial({color:0x101216, roughness:.5, metalness:.3}),
   disc:   new THREE.MeshBasicMaterial({color:0x7fc4ff, transparent:true, opacity:.08, side:THREE.DoubleSide}),
-  batt:   new THREE.MeshStandardMaterial({color:0xff9c2e, roughness:.5, emissive:0x351d00}),
+  batt:   new THREE.MeshStandardMaterial({color:0x33373f, roughness:.55, metalness:.35}),
   green:  new THREE.MeshStandardMaterial({color:0x39c46f, roughness:.5, emissive:0x08240f}),
   seat:   new THREE.MeshStandardMaterial({color:0x14161b, roughness:.7}),
   glass:  new THREE.MeshPhysicalMaterial({color:0x9fd8ff, transparent:true, opacity:.22, roughness:.06, metalness:0}),
@@ -196,7 +196,8 @@ const tubG=part('Cockpit tub (waterproof)',3500,'22 kg',
    {x:700,  cy:box_h+175, w:360, h:325},
    {x:300,  cy:box_h+275, w:435, h:435},
    {x:-120, cy:box_h+295, w:445, h:450},
-   {x:-460, cy:box_h+225, w:380, h:365},
+   {x:-460, cy:box_h+245, w:410, h:400},
+   {x:-760, cy:box_h+170, w:330, h:310},
  ];
  tubG.add(loftCanopyTop(canStations, M.glass));
 }
@@ -207,7 +208,7 @@ const cfG=part('Framed canopy (openable)',1400,'8 kg',
  new THREE.Vector3(-150,650,0),new THREE.Vector3(150,box_h+620,0));
 {const F=M.carbon, a0=Math.PI*0.20, a1=Math.PI*0.80;
  // same stations as the canopy glass, so the frame OUTLINES the glass edge and latches to the body
- const cs=[{x:700,cy:box_h+175,w:360,h:325},{x:300,cy:box_h+275,w:435,h:435},{x:-120,cy:box_h+295,w:445,h:450},{x:-460,cy:box_h+225,w:380,h:365}];
+ const cs=[{x:700,cy:box_h+175,w:360,h:325},{x:300,cy:box_h+275,w:435,h:435},{x:-120,cy:box_h+295,w:445,h:450},{x:-460,cy:box_h+245,w:410,h:400},{x:-760,cy:box_h+170,w:330,h:310}];
  const P=(s,a)=>new THREE.Vector3(s.x, s.cy+s.h*1.05*Math.sin(a), s.w*1.05*Math.cos(a));
  // two sill rails (frame edges that sit flush on the fuselage where glass meets body)
  for(let i=0;i<cs.length-1;i++){cfG.add(tube(P(cs[i],a0),P(cs[i+1],a0),17,F));cfG.add(tube(P(cs[i],a1),P(cs[i+1],a1),17,F));}
@@ -310,8 +311,8 @@ for(const [f,s] of [[1,1],[1,-1],[-1,1],[-1,-1]]){
 // BATTERY
 const batG=part('Battery — 24S 14 kWh',9000,'58 kg',
  '~860 Li-ion cells (24 in series ×36 parallel) → ~89 V, ~160 Ah. Heaviest part and the reason we\'re over the weight limit — the whole engineering fight.',
- new THREE.Vector3(0,-750,0),new THREE.Vector3(-120,box_h+40,0));
-{const b=new THREE.Mesh(new THREE.BoxGeometry(620,200,600),M.batt);b.position.set(-120,box_h+20,0);b.castShadow=true;batG.add(b);}
+ new THREE.Vector3(0,-750,0),new THREE.Vector3(-120,box_h-85,0));
+{const b=new THREE.Mesh(new THREE.BoxGeometry(690,130,700),M.batt);b.position.set(-120,box_h-85,0);b.castShadow=true;batG.add(b);}
 
 // FLIGHT COMPUTER
 const fcG=part('Flight computer ×3',900,'0.8 kg',
@@ -328,17 +329,13 @@ for(const s of [-1,1]){skG.add(tube(new THREE.Vector3(-980,box_h-500,s*430),new 
  for(const x of [-400,400])skG.add(tube(new THREE.Vector3(x,box_h-40,s*360),new THREE.Vector3(x,box_h-490,s*430),25,M.carbon));}
 
 // CARGO BAY
-const cargoG=part('Cargo bay',400,'3 kg',
- 'Sealed compartment behind the seat — ~60 L, good for ~15-20 kg of minimal cargo (gear bag, cooler, tools). Waterproof latching hatch. Weight here counts against useful load, not empty weight.',
- new THREE.Vector3(-500,300,0),new THREE.Vector3(-480,box_h+250,0));
-{const cb=new THREE.Mesh(new THREE.BoxGeometry(360,300,440),M.carbonL);cb.position.set(-480,box_h+180,0);cb.castShadow=true;cargoG.add(cb);
- // rear hinge
- const hg=new THREE.Mesh(new THREE.CylinderGeometry(16,16,450,12),M.silver);hg.rotation.x=Math.PI/2;hg.position.set(-655,box_h+330,0);cargoG.add(hg);
- // hatch lid shown OPEN (lifts up from the rear hinge) — so you can clearly reach in
- const lid=new THREE.Mesh(new THREE.BoxGeometry(380,22,450),M.carbon);
- lid.position.set(-470,box_h+470,0);lid.rotation.z=0.7;lid.castShadow=true;cargoG.add(lid);
- const handle=new THREE.Mesh(new THREE.TorusGeometry(45,10,8,16,Math.PI),M.silver);
- handle.rotation.set(Math.PI/2,0,0.7);handle.position.set(-300,box_h+560,0);cargoG.add(handle);}
+const cargoG=part('Open cargo area',400,'2 kg',
+ 'OPEN space behind the seat, under the canopy — a well you can drop a dog, groceries, or a gear bag into. Just a floor and low sides, open to the cabin (not a sealed box).',
+ new THREE.Vector3(-400,300,0),new THREE.Vector3(-470,box_h+120,0));
+{const fl=new THREE.Mesh(new THREE.BoxGeometry(400,24,580),M.carbonL);fl.position.set(-475,box_h-60,0);fl.castShadow=true;cargoG.add(fl);
+ // low lips (rear + sides) so it reads as an open well; front open to the cabin
+ const lip=(x,z,w,d)=>{const m=new THREE.Mesh(new THREE.BoxGeometry(w,120,d),M.carbonL);m.position.set(x,box_h+5,z);m.castShadow=true;cargoG.add(m);};
+ lip(-670,0,26,580); lip(-475,295,400,26); lip(-475,-295,400,26);}
 
 // BALLISTIC CHUTE
 const chG=part('Ballistic parachute',5000,'9 kg (exempt)',
