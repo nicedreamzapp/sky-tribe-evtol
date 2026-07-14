@@ -35,6 +35,7 @@
   <label><input type="checkbox" id="pilot" checked> show pilot (scale)</label>
   <label><input type="checkbox" id="labels"> part labels</label>
   <label><input type="checkbox" id="spin" checked> auto-rotate</label>
+  <label><input type="checkbox" id="water"> 🌊 water mode (show waterline)</label>
   <hr style="border-color:#26456f">
   <div style="font-size:12px;opacity:.85">Width across props <b>14.7 ft</b><br>Length <b>8.5 ft</b><br>Height <b>~5.5 ft</b><br>Empty (as drawn) <b>~156 kg</b></div>
   <div class="tot" id="tot">$0</div>
@@ -76,6 +77,15 @@ const ground = new THREE.Mesh(new THREE.CircleGeometry(9000,64),
   new THREE.MeshStandardMaterial({color:0x11182a, roughness:1}));
 ground.rotation.x = -Math.PI/2; ground.position.y = -560; ground.receiveShadow = true; scene.add(ground);
 const grid = new THREE.GridHelper(14000,56,0x2a3d5c,0x18243c); grid.position.y=-559; scene.add(grid);
+
+// WATER (buoyancy): all-up ~241 kg (156 empty + 85 pilot) displaces ~241 L.
+// Sealed hull holds ~650 L, so it floats with only the bottom ~20 cm of
+// belly submerged (~2.7x reserve buoyancy). Waterline sits ~at the base of
+// the cockpit coaming — cabin, seat, pilot all stay dry.
+const WL = 55; // model mm — computed waterline height
+const water = new THREE.Mesh(new THREE.CircleGeometry(9000,64),
+  new THREE.MeshPhysicalMaterial({color:0x1c6ea0, transparent:true, opacity:.55, roughness:.15, metalness:0, side:THREE.DoubleSide}));
+water.rotation.x = -Math.PI/2; water.position.y = WL; water.visible = false; scene.add(water);
 
 // materials
 const M = {
@@ -165,16 +175,18 @@ const tubG=part('Cockpit tub (waterproof)',3500,'22 kg',
 const seatG=part('Seat + 4-point harness',600,'5 kg',
  'Composite seat pan + back + headrest with a 4-point racing harness. One occupant (Part 103). Blue figure = 1.75 m pilot for scale.',
  new THREE.Vector3(0,600,0),new THREE.Vector3(80,box_h+700,0));
-{const pan=new THREE.Mesh(new THREE.BoxGeometry(430,50,470),M.seat);pan.position.set(90,box_h+120,0);pan.castShadow=true;seatG.add(pan);
- const back=new THREE.Mesh(new THREE.BoxGeometry(50,560,470),M.seat);back.position.set(-140,box_h+400,0);back.rotation.z=.12;back.castShadow=true;seatG.add(back);
- const head=new THREE.Mesh(new THREE.BoxGeometry(60,150,300),M.seat);head.position.set(-175,box_h+710,0);head.castShadow=true;seatG.add(head);
+{// pilot sits DOWN IN the hull: hips low near the keel, feet forward in a well
+ const pan=new THREE.Mesh(new THREE.BoxGeometry(430,50,470),M.seat);pan.position.set(60,box_h-110,0);pan.castShadow=true;seatG.add(pan);
+ const back=new THREE.Mesh(new THREE.BoxGeometry(50,520,470),M.seat);back.position.set(-165,box_h+150,0);back.rotation.z=.1;back.castShadow=true;seatG.add(back);
+ const head=new THREE.Mesh(new THREE.BoxGeometry(60,150,300),M.seat);head.position.set(-195,box_h+430,0);head.castShadow=true;seatG.add(head);
  // harness straps (V over chest)
- for(const z of [-110,110]){seatG.add(tube(new THREE.Vector3(-150,box_h+660,z*.4),new THREE.Vector3(120,box_h+230,z),16,M.strap));}
- // pilot silhouette
+ for(const z of [-110,110]){seatG.add(tube(new THREE.Vector3(-175,box_h+380,z*.4),new THREE.Vector3(90,box_h-10,z),16,M.strap));}
+ // pilot silhouette — seated low, knees up, feet forward
  const p=new THREE.Group();p.userData.pilot=true;
- const torso=new THREE.Mesh(new THREE.CapsuleGeometry(115,360,8,16),M.pilot);torso.position.set(70,box_h+430,0);torso.rotation.z=.12;p.add(torso);
- const head2=new THREE.Mesh(new THREE.SphereGeometry(95,20,16),M.pilot);head2.position.set(30,box_h+760,0);p.add(head2);
- const thigh=new THREE.Mesh(new THREE.CapsuleGeometry(85,340,8,12),M.pilot);thigh.rotation.z=Math.PI/2;thigh.position.set(360,box_h+180,0);p.add(thigh);
+ const torso=new THREE.Mesh(new THREE.CapsuleGeometry(115,340,8,16),M.pilot);torso.position.set(40,box_h+170,0);torso.rotation.z=.1;p.add(torso);
+ const head2=new THREE.Mesh(new THREE.SphereGeometry(95,20,16),M.pilot);head2.position.set(0,box_h+500,0);p.add(head2);
+ const thigh=new THREE.Mesh(new THREE.CapsuleGeometry(85,360,8,12),M.pilot);thigh.rotation.z=Math.PI/2.4;thigh.position.set(340,box_h-40,0);p.add(thigh);
+ const shin=new THREE.Mesh(new THREE.CapsuleGeometry(70,320,8,12),M.pilot);shin.rotation.z=Math.PI/2.1;shin.position.set(620,box_h-120,0);p.add(shin);
  seatG.add(p);window._pilot=p;
 }
 
@@ -182,12 +194,12 @@ const seatG=part('Seat + 4-point harness',600,'5 kg',
 const panelG=part('Panel · stick · pedals',2300,'3.5 kg',
  'Fly-by-wire cockpit: curved glass instrument display, right-hand sidestick, left throttle, rudder pedals. All feed the triple-redundant flight computers.',
  new THREE.Vector3(500,300,0),new THREE.Vector3(560,box_h+430,0));
-{const pnl=new THREE.Mesh(new THREE.BoxGeometry(50,240,460),M.carbon);pnl.position.set(560,box_h+430,0);pnl.rotation.z=-.5;pnl.castShadow=true;panelG.add(pnl);
- const scr=new THREE.Mesh(new THREE.BoxGeometry(10,180,380),M.screen);scr.position.set(590,box_h+440,0);scr.rotation.z=-.5;panelG.add(scr);
- const stick=new THREE.Mesh(new THREE.CylinderGeometry(18,22,180,12),M.seat);stick.position.set(300,box_h+250,-190);panelG.add(stick);
- const knob=new THREE.Mesh(new THREE.SphereGeometry(30,16,12),M.red);knob.position.set(300,box_h+340,-190);panelG.add(knob);
- const thr=new THREE.Mesh(new THREE.BoxGeometry(120,26,50),M.seat);thr.position.set(280,box_h+250,200);panelG.add(thr);
- for(const z of [-90,90]){const ped=new THREE.Mesh(new THREE.BoxGeometry(120,70,90),M.carbonL);ped.position.set(760,box_h+40,z);ped.rotation.z=-.3;panelG.add(ped);}
+{const pnl=new THREE.Mesh(new THREE.BoxGeometry(50,220,460),M.carbon);pnl.position.set(600,box_h+210,0);pnl.rotation.z=-.5;pnl.castShadow=true;panelG.add(pnl);
+ const scr=new THREE.Mesh(new THREE.BoxGeometry(10,160,380),M.screen);scr.position.set(630,box_h+220,0);scr.rotation.z=-.5;panelG.add(scr);
+ const stick=new THREE.Mesh(new THREE.CylinderGeometry(18,22,170,12),M.seat);stick.position.set(300,box_h+40,-200);panelG.add(stick);
+ const knob=new THREE.Mesh(new THREE.SphereGeometry(30,16,12),M.red);knob.position.set(300,box_h+125,-200);panelG.add(knob);
+ const thr=new THREE.Mesh(new THREE.BoxGeometry(120,26,50),M.seat);thr.position.set(280,box_h+45,200);panelG.add(thr);
+ for(const z of [-90,90]){const ped=new THREE.Mesh(new THREE.BoxGeometry(120,70,90),M.carbonL);ped.position.set(820,box_h-110,z);ped.rotation.z=-.3;panelG.add(ped);}
 }
 
 // ARMS + MOTORS + ESC + PROPS  (priced individually per corner group)
@@ -269,6 +281,11 @@ const $=id=>document.getElementById(id), card=document.getElementById('card');
 $('explode').addEventListener('input',e=>{const t=e.target.value/100;for(const p of parts)p.g.position.copy(p.explode).multiplyScalar(t);});
 $('labels').addEventListener('change',e=>{craft.traverse(o=>{if(o.userData.isLabel)o.visible=e.target.checked;});});
 $('spin').addEventListener('change',e=>controls.autoRotate=e.target.checked);
+$('water').addEventListener('change',e=>{water.visible=e.target.checked;
+  if(e.target.checked){$('cName').textContent='Buoyancy / waterline';$('cPrice').textContent='floats';
+    $('cMass').textContent='all-up ~241 kg (156 empty + 85 pilot)';
+    $('cSpec').textContent='Sealed hull holds ~650 L; needs to displace only ~241 L, so it floats with the bottom ~20 cm of belly submerged — ~2.7x reserve buoyancy. Waterline sits at the base of the cockpit coaming; cabin, seat, and pilot stay dry. Wide beam + low battery = stable, floats level like a jet-ski hull. Skids hang below the surface.';
+    card.style.display='block';}});
 $('pilot').addEventListener('change',e=>{if(window._pilot)window._pilot.visible=e.target.checked;});
 function flyTo(pos,tgt){controls.autoRotate=false;$('spin').checked=false;
   camera.position.set(...pos);controls.target.set(...tgt);controls.update();}
