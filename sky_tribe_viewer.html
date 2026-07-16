@@ -210,18 +210,28 @@ function smoothStations(st, n=28){
     out.push({x:a.x,cy:a.y,w:Math.max(20,b.x),h:Math.max(20,b.y)});}
   return out;
 }
+// COCKPIT SILL — one constant world height (2026-07-16, Matt: "make that fuselage
+// straight across on the sides").
+// The old cut was by ANGLE (skip faces where sin(a) > 0.50), which made the sill
+// follow the ellipse and climb to y=770 at the widest station — 42mm ABOVE the
+// pilot's 728mm eye line. The pilot was looking at the inside of the hull. Cutting
+// at a constant Y instead gives a straight, level coaming line AND real visibility:
+// eye sits 128mm above the sill, just under shoulder height, like a real cockpit.
+const SILL_Y = 600;
+const OPEN_FROM = -700, OPEN_TO = 680;
+
 // loft ONE smooth continuous fuselage from a set of cross-section stations
 function loftHull(stations, mat, openFrom, openTo){
   stations=smoothStations(stations);
-  const M=48, verts=[], idx=[];
+  const M=72, verts=[], idx=[];
   const rings=stations.map(s=>{const r=[];for(let i=0;i<M;i++){const a=Math.PI*2*i/M;r.push([s.x, s.cy+s.h*Math.sin(a), s.w*Math.cos(a)]);}return r;});
   rings.forEach(r=>r.forEach(p=>verts.push(p[0],p[1],p[2])));
   for(let s=0;s<rings.length-1;s++)for(let i=0;i<M;i++){
     const xMid=(stations[s].x+stations[s+1].x)/2, ang=Math.PI*2*i/M;
-    // leave the TOP open across the cockpit/cargo region so the canopy reveals the interior
-    // (opening is cut SMALLER than the glass footprint so the closed canopy overlaps
-    //  the hull edge all the way around — reads sealed, no gap)
-    if(openFrom!==undefined && xMid>openFrom && xMid<openTo && Math.sin(ang)>0.50) continue;
+    const cyMid=(stations[s].cy+stations[s+1].cy)/2, hMid=(stations[s].h+stations[s+1].h)/2;
+    // cut at a constant WORLD height -> the sill is a straight line down the side
+    const yAt=cyMid+hMid*Math.sin(ang);
+    if(openFrom!==undefined && xMid>openFrom && xMid<openTo && yAt>SILL_Y) continue;
     const a=s*M+i,b=s*M+(i+1)%M,c=(s+1)*M+i,d=(s+1)*M+(i+1)%M;idx.push(a,c,b,b,c,d);}
   // nose + tail caps
   const nose=stations[stations.length-1], tail=stations[0];
@@ -235,19 +245,43 @@ function loftHull(stations, mat, openFrom, openTo){
   const m=new THREE.Mesh(g,mat); m.castShadow=true; return m;
 }
 // loft ONLY the top arc (canopy glass that hugs the body silhouette)
-// Glass arc MUST reach well below the hull's cut line or you get a daylight gap
-// along the sill. Hull is cut at sin(a)>0.50 (30 deg); glass runs from 0.06pi
-// (~11 deg) so it laps ~19 deg of solid hull on each side — a real overlap, not a
-// hairline. GLASS_A0/A1 are shared with the frame so the two can't drift apart.
-const GLASS_A0=Math.PI*0.06, GLASS_A1=Math.PI*0.94, GLASS_OUT=1.012;
-function loftCanopyTop(stations, mat){
-  stations=smoothStations(stations,20);
-  const M=36, a0=GLASS_A0, a1=GLASS_A1, verts=[], idx=[];
-  const rings=stations.map(s=>{const r=[];for(let i=0;i<M;i++){const a=a0+(a1-a0)*i/(M-1);r.push([s.x, s.cy+s.h*GLASS_OUT*Math.sin(a), s.w*GLASS_OUT*Math.cos(a)]);}return r;});
+// THE CANOPY IS THE SAME LOFT AS THE HULL (2026-07-16).
+// It used to be built from its OWN station list (different widths, heights and
+// centres than the body), so the glass and the fuselage were two shapes that never
+// agreed — which is exactly why the frame bar "crossed over the fuselage and didn't
+// look exact". Now the canopy is literally the hull surface ABOVE the sill, pushed
+// out by GLASS_OUT so it lies on the skin. They cannot drift apart because they are
+// the same numbers.
+const GLASS_OUT=1.012;
+function loftGlass(stations, mat, openFrom, openTo){
+  stations=smoothStations(stations);
+  const M=72, verts=[], idx=[];
+  const rings=stations.map(s=>{const r=[];for(let i=0;i<M;i++){const a=Math.PI*2*i/M;
+    r.push([s.x, s.cy+s.h*GLASS_OUT*Math.sin(a), s.w*GLASS_OUT*Math.cos(a)]);}return r;});
   rings.forEach(r=>r.forEach(p=>verts.push(p[0],p[1],p[2])));
-  for(let s=0;s<rings.length-1;s++)for(let i=0;i<M-1;i++){const a=s*M+i,b=s*M+i+1,c=(s+1)*M+i,d=(s+1)*M+i+1;idx.push(a,c,b,b,c,d);}
-  const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(verts,3));g.setIndex(idx);g.computeVertexNormals();
+  for(let s=0;s<rings.length-1;s++)for(let i=0;i<M;i++){
+    const xMid=(stations[s].x+stations[s+1].x)/2, ang=Math.PI*2*i/M;
+    const cyMid=(stations[s].cy+stations[s+1].cy)/2, hMid=(stations[s].h+stations[s+1].h)/2;
+    const yAt=cyMid+hMid*Math.sin(ang);
+    // glass = ONLY the part of the same body that sits above the sill in the opening
+    if(!(xMid>openFrom && xMid<openTo && yAt>SILL_Y)) continue;
+    const a=s*M+i,b=s*M+(i+1)%M,c=(s+1)*M+i,d=(s+1)*M+(i+1)%M;idx.push(a,c,b,b,c,d);}
+  const g=new THREE.BufferGeometry();
+  g.setAttribute('position',new THREE.Float32BufferAttribute(verts,3));
+  g.setIndex(idx); g.computeVertexNormals();
   return new THREE.Mesh(g,mat);
+}
+// the sill line itself: where a station's surface crosses SILL_Y, per side
+function sillPoints(stations, openFrom, openTo, out=1.0){
+  const st=smoothStations(stations), pts=[];
+  for(const s of st){
+    if(s.x<=openFrom||s.x>=openTo) continue;
+    const sinA=(SILL_Y-s.cy)/s.h;
+    if(sinA<-1||sinA>1) continue;
+    const z=s.w*out*Math.cos(Math.asin(sinA));
+    pts.push({x:s.x, z});
+  }
+  return pts;
 }
 function makeLabel(t){
   const c=document.createElement('canvas'),x=c.getContext('2d');
@@ -305,42 +339,38 @@ for(const x of [-500,500])for(const y of [-360,360]){const s=new THREE.Mesh(new 
 const tubG=part('Cockpit tub (waterproof)',3500,'22 kg',
  'Sealed waterproof carbon shell around the pilot — IP-rated against rain and spray, electronics stay dry. Aerodynamic nose, faired sides, room for one pilot + a small cargo bay.',
  new THREE.Vector3(700,0,0),new THREE.Vector3(700,box_h+150,0));
-{// ONE smooth lofted fuselage — nose to tail, natural canopy hump. Single flowing line, no two ovals.
+{// ONE smooth lofted fuselage — nose to tail. The canopy is CUT FROM THIS SAME BODY.
+ // Station tweaks 2026-07-16 (Matt: "fuselage shape needs to change to allow more
+ // viewing"): the deck ahead of the windscreen used to top out at y=765, ABOVE the
+ // pilot's 728 eye line, so the nose blocked the forward view. Forward stations
+ // dropped so the cowl falls away below the eye line; mid station slimmed slightly
+ // so the body reads less bulbous.
  const bodyStations=[
    {x:-1300, cy:box_h+105, w:70,  h:70},
    {x:-850,  cy:box_h+120, w:300, h:230},
-   {x:-350,  cy:box_h+235, w:435, h:375},
-   {x:150,   cy:box_h+300, w:465, h:455},
-   {x:650,   cy:box_h+180, w:415, h:335},
-   {x:1050,  cy:box_h+80,  w:280, h:215},
+   {x:-350,  cy:box_h+235, w:435, h:365},
+   {x:150,   cy:box_h+290, w:465, h:435},
+   {x:650,   cy:box_h+150, w:415, h:300},   // was cy+180 / h335 → cowl top 765 (above eye)
+   {x:1050,  cy:box_h+70,  w:280, h:200},
    {x:1330,  cy:box_h+35,  w:90,  h:135},
  ];
- tubG.add(loftHull(bodyStations, M.shell, -700, 680));
- // glass canopy that follows the SAME silhouette (windscreen + roof) — not a separate egg
- const canStations=[
-   {x:700,  cy:box_h+175, w:360, h:325},
-   {x:300,  cy:box_h+275, w:435, h:435},
-   {x:-120, cy:box_h+295, w:445, h:450},
-   {x:-460, cy:box_h+245, w:410, h:400},
-   {x:-760, cy:box_h+170, w:330, h:310},
- ];
- const _glass=loftCanopyTop(canStations, M.glass); tubG.add(_glass); window._glass=_glass;
- // REAR BULKHEAD (added 2026-07-16 — Matt spotted the hole from the back view).
- // The cockpit opening was cut through the deck with NOTHING closing it off aft, so
- // you looked straight down the inside of the fuselage. No aircraft is built that way:
- // the cabin ends at a structural bulkhead behind the pilot, and the canopy seals
- // against it. This is also what makes the "sealed waterproof shell" claim true —
- // an open mouth aft would take spray straight into the cabin on a water landing.
- // Sized 4% oversize so it buries into the hull skin instead of leaving a hairline.
- {const bx=-700;                       // aft edge of the canopy opening
-  const t=(bx-(-850))/((-350)-(-850)); // interpolate the station between -850 and -350
-  const cy=box_h+120+t*115, w=(300+t*135)*1.04, h=(230+t*145)*1.04;
+ window._bodyStations=bodyStations;
+ tubG.add(loftHull(bodyStations, M.shell, OPEN_FROM, OPEN_TO));
+ // THE CANOPY: the same body above the sill. Not a separate egg with its own numbers.
+ const _glass=loftGlass(bodyStations, M.glass, OPEN_FROM, OPEN_TO);
+ tubG.add(_glass); window._glass=_glass;
+ // REAR BULKHEAD — closes the cabin aft AND caps the rear of the glass.
+ // (The old canopy surface had no end cap at all, which is the "big hole in the back
+ //  of the canopy where it meets the fuselage": you were looking down an open tube.)
+ // Built from the SAME station maths as the hull so its edge lands on the skin.
+ {const bx=OPEN_FROM;
+  const t=(bx-(-850))/((-350)-(-850));
+  const cy=box_h+120+t*115, w=(300+t*135)*1.05, h=(230+t*135)*1.05;
   const mat=M.carbonL.clone(); mat.side=THREE.DoubleSide;
-  const bh=new THREE.Mesh(new THREE.CircleGeometry(1,56), mat);
+  const bh=new THREE.Mesh(new THREE.CircleGeometry(1,64), mat);
   bh.rotation.y=Math.PI/2; bh.scale.set(w,h,1); bh.position.set(bx,cy,0);
   bh.castShadow=true; bh.receiveShadow=true; tubG.add(bh);
-  // rolled lip around the bulkhead edge = the canopy's rear sealing face
-  const lip=new THREE.Mesh(new THREE.TorusGeometry(1,0.028,10,56), M.carbon);
+  const lip=new THREE.Mesh(new THREE.TorusGeometry(1,0.026,10,64), M.carbon);
   lip.rotation.y=Math.PI/2; lip.scale.set(w,h,Math.max(w,h)); lip.position.set(bx,cy,0); tubG.add(lip);}
 }
 
@@ -348,25 +378,47 @@ const tubG=part('Cockpit tub (waterproof)',3500,'22 kg',
 const cfG=part('Framed canopy (openable)',1400,'8 kg',
  'Carbon-fiber space-frame canopy: flat tinted glass panels held between structural frame bows and rails, hinged at the rear to lift open like a fighter jet. Latches and seals at the front — waterproof when closed.',
  new THREE.Vector3(-150,650,0),new THREE.Vector3(150,box_h+620,0));
-{const F=M.carbon, a0=GLASS_A0, a1=GLASS_A1;
- // same stations AND same arc as the canopy glass, so the frame sits ON the glass edge
- // instead of floating proud of it (the old 1.05 offset was the visible "gap")
- const cs=[{x:700,cy:box_h+175,w:360,h:325},{x:300,cy:box_h+275,w:435,h:435},{x:-120,cy:box_h+295,w:445,h:450},{x:-460,cy:box_h+245,w:410,h:400},{x:-760,cy:box_h+170,w:330,h:310}];
- const FO=GLASS_OUT+0.012;
- const P=(s,a)=>new THREE.Vector3(s.x, s.cy+s.h*FO*Math.sin(a), s.w*FO*Math.cos(a));
- // two sill rails (frame edges that sit flush on the fuselage where glass meets body)
- // — run along the SMOOTHED silhouette so the rails follow the glass with no kinks
- const csS=smoothStations(cs,16);
- for(let i=0;i<csS.length-1;i++){cfG.add(tube(P(csS[i],a0),P(csS[i+1],a0),17,F));cfG.add(tube(P(csS[i],a1),P(csS[i+1],a1),17,F));}
- // windscreen frame (front arc) + rear frame (rear arc)
- const arc=(s)=>{let prev=null;for(let k=0;k<=20;k++){const a=a0+(a1-a0)*k/20;const p=P(s,a);if(prev)cfG.add(tube(prev,p,17,F));prev=p;}};
- arc(cs[0]); arc(cs[cs.length-1]);
- // one clean center spine following the roofline (smoothed, no kinks)
- let prev=null;for(const s of csS){const p=P(s,Math.PI/2);if(prev)cfG.add(tube(prev,p,15,F));prev=p;}
- // rear hinge (canopy lifts here) + front latch onto the fuselage
- cfG.add(tube(P(cs[cs.length-1],a0),P(cs[cs.length-1],a1),22,M.silver));
- const latch=new THREE.Mesh(new THREE.BoxGeometry(60,44,120),M.silver);
- latch.position.copy(P(cs[0],Math.PI/2)).add(new THREE.Vector3(30,-30,0)); cfG.add(latch);
+{const F=M.carbon, FO=GLASS_OUT+0.010;
+ const BS=window._bodyStations;
+ // COAMING RAILS: run along the ACTUAL sill line — constant height, straight down the
+ // side. The old rails were drawn on a different station list at a fixed ANGLE, which
+ // is why the bar wandered across the fuselage instead of landing on the opening edge.
+ const rail=sillPoints(BS, OPEN_FROM, OPEN_TO, FO);
+ for(let i=0;i<rail.length-1;i++){
+   for(const sgn of [1,-1]){
+     cfG.add(tube(new THREE.Vector3(rail[i].x,   SILL_Y, sgn*rail[i].z),
+                  new THREE.Vector3(rail[i+1].x, SILL_Y, sgn*rail[i+1].z), 16, F));
+   }
+ }
+ // FRONT + REAR BOWS: arc from the sill on one side, over the roof, to the other sill —
+ // using the same body stations, so the bow lands exactly where the glass ends.
+ const bow=(x)=>{
+   const st=smoothStations(BS).reduce((a,b)=>Math.abs(b.x-x)<Math.abs(a.x-x)?b:a);
+   const sinA=(SILL_Y-st.cy)/st.h; if(sinA<-1||sinA>1) return;
+   const aS=Math.asin(sinA), aE=Math.PI-aS;
+   let prev=null;
+   for(let k=0;k<=24;k++){
+     const a=aS+(aE-aS)*k/24;
+     const p=new THREE.Vector3(st.x, st.cy+st.h*FO*Math.sin(a), st.w*FO*Math.cos(a));
+     if(prev) cfG.add(tube(prev,p,16,F)); prev=p;
+   }
+ };
+ bow(OPEN_TO-8);            // windscreen bow
+ bow(OPEN_FROM+8);          // rear bow, against the bulkhead
+ // roof spine
+ {let prev=null;
+  for(const s of smoothStations(BS)){
+    if(s.x<=OPEN_FROM||s.x>=OPEN_TO) continue;
+    const p=new THREE.Vector3(s.x, s.cy+s.h*FO, 0);
+    if(prev) cfG.add(tube(prev,p,14,F)); prev=p;
+  }}
+ // rear hinge across the bulkhead + front latch on the coaming
+ if(rail.length){
+   const r0=rail[0], rN=rail[rail.length-1];
+   cfG.add(tube(new THREE.Vector3(r0.x,SILL_Y,-r0.z), new THREE.Vector3(r0.x,SILL_Y,r0.z), 20, M.silver));
+   const latch=new THREE.Mesh(new THREE.BoxGeometry(56,40,110),M.silver);
+   latch.position.set(rN.x-20, SILL_Y+18, 0); cfG.add(latch);
+ }
 }
 
 // FLOOR + SEAT + HARNESS + PILOT
@@ -505,10 +557,10 @@ for(const [f,s] of [[1,1],[1,-1],[-1,1],[-1,-1]]){
 // BATTERY — QUICK-SWAP BAY (Matt's call 2026-07-15: one bay, two legal packs)
 const batG=part('Quick-swap battery bay',9000,'20-58 kg (pack)',
  'One bay sized for the BIGGEST pack, quick-release rails, one connector, same CG for every pack. Config A (Part 103, no license): small ~5 kWh pack, ~20 kg, ~10-15 min. Config B (Experimental/MOSAIC, licensed pilot): 14 kWh pack, 58 kg, 30-60 min cruise. Same airframe, both legal.',
- new THREE.Vector3(0,-750,0),new THREE.Vector3(-120,box_h-85,0));
-{const b=new THREE.Mesh(new THREE.BoxGeometry(...C().packBox),M.batt);b.position.set(-120,box_h-85,0);b.castShadow=true;b.userData.isPack=true;batG.add(b);window._pack=b;
+ new THREE.Vector3(0,-750,0),new THREE.Vector3(-120,box_h-68,0));
+{const b=new THREE.Mesh(new THREE.BoxGeometry(...C().packBox),M.batt);b.position.set(-120,box_h-68,0);b.castShadow=true;b.userData.isPack=true;batG.add(b);window._pack=b;
  // swap rails along both sides of the bay — ALWAYS sized for the BIG pack, so either drops in
- for(const z of [-330,330]) batG.add(tube(new THREE.Vector3(-465,box_h-150,z),new THREE.Vector3(225,box_h-150,z),14,M.silver));}
+ for(const z of [-330,330]) batG.add(tube(new THREE.Vector3(-465,box_h-133,z),new THREE.Vector3(225,box_h-133,z),14,M.silver));}
 
 // FLIGHT COMPUTER
 const fcG=part('Flight computer ×3',900,'0.8 kg',
@@ -588,7 +640,7 @@ window._push=pushG;
  pd.rotation.z=Math.PI/2; pd.position.set(TX-190,CY,0); mod.add(pd);}
 
 // ---- canopy open/close: hinge the glass + frame at the rear so it lifts open ----
-const canopyPivot=new THREE.Group(); canopyPivot.position.set(-760, box_h+180, 0); craft.add(canopyPivot);
+const canopyPivot=new THREE.Group(); canopyPivot.position.set(OPEN_FROM, SILL_Y, 0); craft.add(canopyPivot);
 if(window._glass) canopyPivot.attach(window._glass);
 canopyPivot.attach(cfG);
 window._canopyPivot=canopyPivot;
@@ -784,6 +836,19 @@ if(PRESENT){
   showT0=performance.now()/1000;
   if(RECORD){ const TOT=SHOW.reduce((a,b)=>a+b.d,0);
     setTimeout(()=>startCanvasRecord(TOT+0.4), 600); }
+}
+// ?shot=1 — render one frame and download it as a PNG straight off the canvas.
+// Beats screen-grabbing: no window juggling, no other app overlapping the shot,
+// and the image is exactly what the renderer drew.
+if(new URLSearchParams(location.search).get('shot')==='1'){
+  setTimeout(()=>{
+    renderer.render(scene,camera);
+    renderer.domElement.toBlob(b=>{
+      const a=document.createElement('a'); a.href=URL.createObjectURL(b);
+      a.download=(new URLSearchParams(location.search).get('name')||'sky_tribe_shot')+'.png';
+      a.click(); document.title='SHOT_DONE';
+    },'image/png');
+  }, 1500);
 }
 function runShow(){
   const TOT=SHOW.reduce((a,b)=>a+b.d,0);

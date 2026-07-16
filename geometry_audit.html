@@ -33,10 +33,10 @@ const GLASS_A0=Math.PI*0.06, GLASS_A1=Math.PI*0.94, GLASS_OUT=1.012;
 const bodyStations=[
   {x:-1300, cy:box_h+105, w:70,  h:70},
   {x:-850,  cy:box_h+120, w:300, h:230},
-  {x:-350,  cy:box_h+235, w:435, h:375},
-  {x:150,   cy:box_h+300, w:465, h:455},
-  {x:650,   cy:box_h+180, w:415, h:335},
-  {x:1050,  cy:box_h+80,  w:280, h:215},
+  {x:-350,  cy:box_h+235, w:435, h:365},
+  {x:150,   cy:box_h+290, w:465, h:435},
+  {x:650,   cy:box_h+150, w:415, h:300},
+  {x:1050,  cy:box_h+70,  w:280, h:200},
   {x:1330,  cy:box_h+35,  w:90,  h:135},
 ];
 const canStations=[
@@ -189,7 +189,7 @@ for(const [f,s,label] of [[1,1,'front-right'],[1,-1,'front-left'],[-1,1,'rear-ri
 
 // ---------- 8. BATTERY BAY ----------
 {
-  const packBig=[700,118,720], bayY=box_h-85;
+  const packBig=[700,118,720], bayY=box_h-68;
   const st=stationAt(bodyStations,-120);
   const floorY=box_h-40-13;                       // spar-box floor underside
   const bellyY=st?st.cy-st.h:0;
