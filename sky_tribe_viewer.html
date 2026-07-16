@@ -6,24 +6,23 @@
 <style>
   html,body{margin:0;height:100%;overflow:hidden;background:#0a0f1a;font-family:-apple-system,Helvetica,sans-serif}
   #hud{position:fixed;top:14px;left:16px;color:#dce8ff;z-index:3;user-select:none}
-  #hud h1{font-size:17px;margin:0 0 2px;font-weight:600}
-  #hud p{font-size:12px;margin:0;opacity:.6}
-  #panel{position:fixed;top:14px;right:16px;z-index:3;background:rgba(12,20,38,.9);
-    border:1px solid #26456f;border-radius:12px;padding:14px 16px;color:#dce8ff;font-size:13px;width:250px}
+  #hud h1{font-size:14px;margin:0 0 2px;font-weight:600}
+  #hud p{font-size:10px;margin:0;opacity:.6}
+  #panel{position:fixed;top:12px;right:12px;z-index:3;background:rgba(12,20,38,.9);
+    border:1px solid #26456f;border-radius:10px;padding:8px 10px;color:#dce8ff;font-size:11px;width:172px}
   #panel b{color:#8fd0ff}
-  #panel button{width:100%;margin:4px 0;padding:8px;background:#163a63;color:#dce8ff;
-    border:1px solid #2f6099;border-radius:8px;font-size:13px;cursor:pointer}
+  #panel button{width:100%;margin:2px 0;padding:4px;background:#163a63;color:#dce8ff;
+    border:1px solid #2f6099;border-radius:6px;font-size:11px;cursor:pointer}
   #panel button:hover{background:#1d4d82}
-  #panel label{display:block;margin:6px 0;cursor:pointer}
-  #panel input[type=range]{width:100%}
-  .tot{font-size:20px;color:#7dffb0;font-weight:700;margin-top:6px}
-  #card{position:fixed;bottom:16px;right:16px;z-index:3;background:rgba(12,20,38,.95);
-    border:1px solid #26456f;border-radius:12px;padding:16px 18px;color:#eaf2ff;width:320px;display:none}
-  #card h2{margin:0 0 4px;font-size:16px;color:#8fd0ff}
-  #card .price{font-size:22px;color:#7dffb0;font-weight:700}
-  #card .mass{font-size:12px;opacity:.7;margin-bottom:6px}
-  #card p{font-size:13px;line-height:1.5;margin:6px 0 0}
-  #hint{position:fixed;bottom:16px;left:16px;color:#dce8ff;font-size:12px;opacity:.55;z-index:3}
+  #panel label{display:block;margin:2px 0;cursor:pointer}
+  #panel input[type=range]{width:100%;margin:0;height:14px}
+  #card{position:fixed;bottom:14px;right:12px;z-index:3;background:rgba(12,20,38,.95);
+    border:1px solid #26456f;border-radius:10px;padding:10px 12px;color:#eaf2ff;width:280px;display:none;font-size:12px}
+  #card h2{margin:0 0 3px;font-size:13px;color:#8fd0ff}
+  #card .price{font-size:15px;color:#7dffb0;font-weight:700}
+  #card .mass{font-size:11px;opacity:.7;margin-bottom:4px}
+  #card p{font-size:11px;line-height:1.45;margin:4px 0 0}
+  #hint{position:fixed;bottom:12px;left:14px;color:#dce8ff;font-size:10px;opacity:.5;z-index:3}
 </style>
 </head>
 <body>
@@ -31,6 +30,13 @@
 <div id="panel">
   <button id="btnCockpit">🪑 Look into cockpit</button>
   <button id="btnOrbit">🔄 Full aircraft view</button>
+  <div style="display:flex;gap:3px">
+    <button id="vF">Front</button><button id="vB">Back</button><button id="vS">Side</button><button id="vT">Top</button>
+  </div>
+  <div style="display:flex;gap:3px;margin-top:3px">
+    <button id="cfgP1" style="background:#5c3a12;border-color:#a06a22">P1 heavy</button><button id="cfgP2">P2 diet</button>
+  </div>
+  <div id="cfgLine" style="font-size:10px;line-height:1.45;margin:4px 0 2px;padding:4px 6px;background:rgba(90,60,20,.35);border-radius:5px"></div>
   <b>EXPLODE</b><input type="range" id="explode" min="0" max="100" value="0">
   <label><input type="checkbox" id="pilot" checked> show pilot (scale)</label>
   <label><input type="checkbox" id="labels"> part labels</label>
@@ -39,10 +45,8 @@
   <label><input type="checkbox" id="ghost"> 🫥 x-ray hull (see body fit)</label>
   <label><input type="checkbox" id="foils" checked> ⚓ show foil gear</label>
   <label><input type="checkbox" id="opencanopy"> 🔓 open canopy</label>
-  <hr style="border-color:#26456f">
-  <div style="font-size:12px;opacity:.85">Width across props <b>14.7 ft</b><br>Length <b>8.5 ft</b><br>Height <b>~5.5 ft</b><br>Empty (as drawn) <b>~156 kg</b></div>
-  <div class="tot" id="tot">$0</div>
-  <div style="font-size:11px;opacity:.6">total parts (click to explore)</div>
+  <hr style="border-color:#26456f;margin:5px 0">
+  <div id="dims" style="font-size:10px;opacity:.8;line-height:1.5"></div>
 </div>
 <div id="card"><h2 id="cName"></h2><div class="price" id="cPrice"></div><div class="mass" id="cMass"></div><p id="cSpec"></p></div>
 <div id="hint">🪑 cockpit button flies you into the seat · explode slider pulls it apart</div>
@@ -121,15 +125,27 @@ function tube(p1,p2,r,mat){
   m.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),d.clone().normalize());
   m.castShadow=true; return m;
 }
+// spline-smooth a short station list into a dense one so the loft has no kinks
+function smoothStations(st, n=28){
+  const A=new THREE.CatmullRomCurve3(st.map(s=>new THREE.Vector3(s.x,s.cy,0)));
+  const B=new THREE.CatmullRomCurve3(st.map(s=>new THREE.Vector3(s.w,s.h,0)));
+  const out=[];
+  for(let i=0;i<=n;i++){const t=i/n,a=A.getPoint(t),b=B.getPoint(t);
+    out.push({x:a.x,cy:a.y,w:Math.max(20,b.x),h:Math.max(20,b.y)});}
+  return out;
+}
 // loft ONE smooth continuous fuselage from a set of cross-section stations
 function loftHull(stations, mat, openFrom, openTo){
-  const M=24, verts=[], idx=[];
+  stations=smoothStations(stations);
+  const M=48, verts=[], idx=[];
   const rings=stations.map(s=>{const r=[];for(let i=0;i<M;i++){const a=Math.PI*2*i/M;r.push([s.x, s.cy+s.h*Math.sin(a), s.w*Math.cos(a)]);}return r;});
   rings.forEach(r=>r.forEach(p=>verts.push(p[0],p[1],p[2])));
   for(let s=0;s<rings.length-1;s++)for(let i=0;i<M;i++){
     const xMid=(stations[s].x+stations[s+1].x)/2, ang=Math.PI*2*i/M;
     // leave the TOP open across the cockpit/cargo region so the canopy reveals the interior
-    if(openFrom!==undefined && xMid>openFrom && xMid<openTo && Math.sin(ang)>0.30) continue;
+    // (opening is cut SMALLER than the glass footprint so the closed canopy overlaps
+    //  the hull edge all the way around — reads sealed, no gap)
+    if(openFrom!==undefined && xMid>openFrom && xMid<openTo && Math.sin(ang)>0.42) continue;
     const a=s*M+i,b=s*M+(i+1)%M,c=(s+1)*M+i,d=(s+1)*M+(i+1)%M;idx.push(a,c,b,b,c,d);}
   // nose + tail caps
   const nose=stations[stations.length-1], tail=stations[0];
@@ -144,7 +160,8 @@ function loftHull(stations, mat, openFrom, openTo){
 }
 // loft ONLY the top arc (canopy glass that hugs the body silhouette)
 function loftCanopyTop(stations, mat){
-  const M=18, a0=Math.PI*0.13, a1=Math.PI*0.87, verts=[], idx=[];
+  stations=smoothStations(stations,20);
+  const M=36, a0=Math.PI*0.13, a1=Math.PI*0.87, verts=[], idx=[];
   const rings=stations.map(s=>{const r=[];for(let i=0;i<M;i++){const a=a0+(a1-a0)*i/(M-1);r.push([s.x, s.cy+s.h*1.02*Math.sin(a), s.w*1.02*Math.cos(a)]);}return r;});
   rings.forEach(r=>r.forEach(p=>verts.push(p[0],p[1],p[2])));
   for(let s=0;s<rings.length-1;s++)for(let i=0;i<M-1;i++){const a=s*M+i,b=s*M+i+1,c=(s+1)*M+i,d=(s+1)*M+i+1;idx.push(a,c,b,b,c,d);}
@@ -160,6 +177,26 @@ function makeLabel(t){
   const s=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(c),depthTest:false,transparent:true}));
   s.scale.set(w,64,1);s.renderOrder=99;s.userData.isLabel=true;return s;
 }
+
+// ---- TWO-PROTOTYPE PROGRAM (Matt 2026-07-15) ----
+// P1 = "the fat crazy one": no weight fight. Big pack, margin everywhere. Flies FIRST,
+//      legally, as Experimental amateur-built (N-number, Matt's license). The learning machine.
+// P2 = "the low-cost lightweight one": the Part 103 production seed, built with P1's lessons.
+// SAME airframe, same X8, same bay. What changes: the pack, the structure diet, the legal lane.
+const CFG = {
+  p1: {name:'P1 — the fat crazy one', kwh:14, packMass:58, packBox:[690,130,700], empty:176,
+       shellColor:0x525b68, pusher:true,
+       lane:'Experimental amateur-built (N-number, licensed pilot)',
+       note:'No weight fight. Big pack, margin everywhere, X2-style rear pusher. Proves X8 motor-out, tuning, water, foils, speed. Thrust still caps AUW ~260 kg.',
+       endur:'~35-40 min cruise · ~75-80 mph w/ pusher'},
+  p2: {name:'P2 — the low-cost lightweight one', kwh:5, packMass:20, packBox:[470,95,560], empty:124,
+       shellColor:0x5c6675, pusher:false,
+       lane:'Part 103 ultralight (no license, no registration)',
+       note:'The production seed. Small swap pack + aggressive CF diet, NO pusher — just the bolt-face so one can be added. Target: under the 115.2 kg line — 124 kg as drawn, still ~9 kg to find.',
+       endur:'~10-15 min · ~50-65 mph (rotor-tilt only)'},
+};
+let CUR = (new URLSearchParams(location.search).get('cfg')==='p2') ? 'p2' : 'p1';
+const C = () => CFG[CUR];
 
 const craft=new THREE.Group();scene.add(craft);
 const parts=[];
@@ -195,7 +232,7 @@ const tubG=part('Cockpit tub (waterproof)',3500,'22 kg',
    {x:1050,  cy:box_h+80,  w:280, h:215},
    {x:1330,  cy:box_h+35,  w:90,  h:135},
  ];
- tubG.add(loftHull(bodyStations, M.shell, -720, 760));
+ tubG.add(loftHull(bodyStations, M.shell, -700, 680));
  // glass canopy that follows the SAME silhouette (windscreen + roof) — not a separate egg
  const canStations=[
    {x:700,  cy:box_h+175, w:360, h:325},
@@ -216,12 +253,14 @@ const cfG=part('Framed canopy (openable)',1400,'8 kg',
  const cs=[{x:700,cy:box_h+175,w:360,h:325},{x:300,cy:box_h+275,w:435,h:435},{x:-120,cy:box_h+295,w:445,h:450},{x:-460,cy:box_h+245,w:410,h:400},{x:-760,cy:box_h+170,w:330,h:310}];
  const P=(s,a)=>new THREE.Vector3(s.x, s.cy+s.h*1.05*Math.sin(a), s.w*1.05*Math.cos(a));
  // two sill rails (frame edges that sit flush on the fuselage where glass meets body)
- for(let i=0;i<cs.length-1;i++){cfG.add(tube(P(cs[i],a0),P(cs[i+1],a0),17,F));cfG.add(tube(P(cs[i],a1),P(cs[i+1],a1),17,F));}
+ // — run along the SMOOTHED silhouette so the rails follow the glass with no kinks
+ const csS=smoothStations(cs,16);
+ for(let i=0;i<csS.length-1;i++){cfG.add(tube(P(csS[i],a0),P(csS[i+1],a0),17,F));cfG.add(tube(P(csS[i],a1),P(csS[i+1],a1),17,F));}
  // windscreen frame (front arc) + rear frame (rear arc)
  const arc=(s)=>{let prev=null;for(let k=0;k<=8;k++){const a=a0+(a1-a0)*k/8;const p=P(s,a);if(prev)cfG.add(tube(prev,p,17,F));prev=p;}};
  arc(cs[0]); arc(cs[cs.length-1]);
- // one clean center spine following the roofline
- let prev=null;for(const s of cs){const p=P(s,Math.PI/2);if(prev)cfG.add(tube(prev,p,15,F));prev=p;}
+ // one clean center spine following the roofline (smoothed, no kinks)
+ let prev=null;for(const s of csS){const p=P(s,Math.PI/2);if(prev)cfG.add(tube(prev,p,15,F));prev=p;}
  // rear hinge (canopy lifts here) + front latch onto the fuselage
  cfG.add(tube(P(cs[cs.length-1],a0),P(cs[cs.length-1],a1),22,M.silver));
  const latch=new THREE.Mesh(new THREE.BoxGeometry(60,44,120),M.silver);
@@ -294,30 +333,34 @@ for(const [f,s] of [[1,1],[1,-1],[-1,1],[-1,-1]]){
    mp.clone().add(new THREE.Vector3(0,-250,0)));
  armG.add(tube(corner,mp.clone().add(new THREE.Vector3(0,-55,0)),34,M.silver));
  armG.add(tube(new THREE.Vector3(f*120,box_h+30,s*120),corner.clone().add(mp).multiplyScalar(.5),22,M.silver));
- // ESC pod
- const escG=part(`ESC ${ci}`,360,'1.1 kg',
-   'FLAME 300A high-voltage motor controller at the arm root, in the cool airflow. Potted for weather.',
-   new THREE.Vector3(f*250,box_h+120,s*250),corner.clone().add(new THREE.Vector3(f*60,90,s*60)));
- {const e=new THREE.Mesh(new THREE.BoxGeometry(150,90,80),M.carbonL);e.position.set(f*560,box_h+70,s*560);e.castShadow=true;escG.add(e);}
- // motor
- const moG=part(`Motor ${ci} — U15XXL`,1999,'4.2 kg',
-   'T-Motor U15XXL KV29 — 100 kg peak thrust on 24S, ~$1,999. The single most-repeated part; four of these lift you at half throttle.',
+ // ESC pair (one per motor, stacked at the arm root)
+ const escG=part(`ESC pair ${ci}`,720,'2.2 kg',
+   'TWO high-voltage motor controllers at the arm root, in the cool airflow — one per coax motor, fully independent so a dead ESC only takes its own motor. Potted for weather.',
+   new THREE.Vector3(f*250,box_h+120,s*250),corner.clone().add(new THREE.Vector3(f*60,120,s*60)));
+ {for(const dy of [0,100]){const e=new THREE.Mesh(new THREE.BoxGeometry(150,90,80),M.carbonL);e.position.set(f*560,box_h+70+dy,s*560);e.castShadow=true;escG.add(e);}}
+ // coax motor pair — X8 (Matt's call 2026-07-15: 8 smaller motors = motor-out survival)
+ const moG=part(`Coax motors ${ci} — 2× U13-class`,2200,'5.0 kg (pair)',
+   'TWO smaller motors stacked on one arm tip, spinning opposite directions (coax X8). Any single motor or ESC can die and the aircraft keeps flying — the reason Jetson ONE is an X8. Costs ~5-8% hover efficiency vs a flat quad; worth it with a pilot aboard. Exact motor model pends the Round-5 trade study.',
    new THREE.Vector3(0,400,0).add(new THREE.Vector3(f*80,0,s*80)),mp.clone().add(new THREE.Vector3(0,90,0)));
- {const can=new THREE.Mesh(new THREE.CylinderGeometry(75,75,95,24),M.carbon);can.position.copy(mp);can.castShadow=true;moG.add(can);
-  const g=new THREE.Mesh(new THREE.CylinderGeometry(60,60,99,24),M.gold);g.position.copy(mp);moG.add(g);}
- // prop
- const prG=part(`Prop ${ci} — 62"`,420,'1.2 kg',
-   '62-inch (1.58 m) 2-blade carbon prop. Big prop = low disk loading = the efficiency that makes a battery quad hover-able.',
-   new THREE.Vector3(0,700,0),mp.clone().add(new THREE.Vector3(0,180,0)));
- {const bl=new THREE.Mesh(new THREE.BoxGeometry(1575,9,55),M.blade);bl.position.copy(mp).add(new THREE.Vector3(0,60,0));bl.rotation.y=(f*35+s*55)*Math.PI/180;bl.castShadow=true;prG.add(bl);spinBlades.push(bl);
-  const d=new THREE.Mesh(new THREE.CylinderGeometry(788,788,3,48),M.disc);d.position.copy(mp).add(new THREE.Vector3(0,54,0));prG.add(d);}
+ {for(const dy of [55,-95]){const can=new THREE.Mesh(new THREE.CylinderGeometry(62,62,85,24),M.carbon);can.position.copy(mp).add(new THREE.Vector3(0,dy,0));can.castShadow=true;moG.add(can);
+   const g=new THREE.Mesh(new THREE.CylinderGeometry(50,50,89,24),M.gold);g.position.copy(mp).add(new THREE.Vector3(0,dy,0));moG.add(g);}}
+ // coax props — top puller + bottom pusher, counter-rotating
+ const prG=part(`Coax props ${ci} — 2× 54"`,700,'1.8 kg (pair)',
+   'Two 54-inch (1.37 m) carbon props per arm, counter-rotating. Slightly smaller than the quad\'s 62" because there are eight discs now — disk loading stays low enough to hover efficiently.',
+   new THREE.Vector3(0,700,0),mp.clone().add(new THREE.Vector3(0,200,0)));
+ // Round-5 verified rule: coax planes >= 0.25 rotor diameters apart (54" prop -> >=343 mm); we use 350 mm
+ {const bl=new THREE.Mesh(new THREE.BoxGeometry(1372,9,52),M.blade);bl.position.copy(mp).add(new THREE.Vector3(0,150,0));bl.rotation.y=(f*35+s*55)*Math.PI/180;bl.castShadow=true;prG.add(bl);spinBlades.push(bl);
+  const bl2=new THREE.Mesh(new THREE.BoxGeometry(1372,9,52),M.blade);bl2.position.copy(mp).add(new THREE.Vector3(0,-200,0));bl2.rotation.y=(f*55+s*35)*Math.PI/180;bl2.userData.rev=true;bl2.castShadow=true;prG.add(bl2);spinBlades.push(bl2);
+  for(const dy of [144,-206]){const d=new THREE.Mesh(new THREE.CylinderGeometry(686,686,3,48),M.disc);d.position.copy(mp).add(new THREE.Vector3(0,dy,0));prG.add(d);}}
 }
 
-// BATTERY
-const batG=part('Battery — 24S 14 kWh',9000,'58 kg',
- '~860 Li-ion cells (24 in series ×36 parallel) → ~89 V, ~160 Ah. Heaviest part and the reason we\'re over the weight limit — the whole engineering fight.',
+// BATTERY — QUICK-SWAP BAY (Matt's call 2026-07-15: one bay, two legal packs)
+const batG=part('Quick-swap battery bay',9000,'20-58 kg (pack)',
+ 'One bay sized for the BIGGEST pack, quick-release rails, one connector, same CG for every pack. Config A (Part 103, no license): small ~5 kWh pack, ~20 kg, ~10-15 min. Config B (Experimental/MOSAIC, licensed pilot): 14 kWh pack, 58 kg, 30-60 min cruise. Same airframe, both legal.',
  new THREE.Vector3(0,-750,0),new THREE.Vector3(-120,box_h-85,0));
-{const b=new THREE.Mesh(new THREE.BoxGeometry(690,130,700),M.batt);b.position.set(-120,box_h-85,0);b.castShadow=true;batG.add(b);}
+{const b=new THREE.Mesh(new THREE.BoxGeometry(...C().packBox),M.batt);b.position.set(-120,box_h-85,0);b.castShadow=true;b.userData.isPack=true;batG.add(b);window._pack=b;
+ // swap rails along both sides of the bay — ALWAYS sized for the BIG pack, so either drops in
+ for(const z of [-330,330]) batG.add(tube(new THREE.Vector3(-465,box_h-150,z),new THREE.Vector3(225,box_h-150,z),14,M.silver));}
 
 // FLIGHT COMPUTER
 const fcG=part('Flight computer ×3',900,'0.8 kg',
@@ -344,10 +387,13 @@ window._foils=foilG;
  // main foil-ski FORWARD, rear foil-ski FAR BACK — wide fore-aft stance so it won't tip on landing
  strut(430,-560); strut(430,560); wing(430,560,150);
  strut(-1050,-380); strut(-1050,380); wing(-1050,380,120);
- // water motor torpedo pod + prop on the main foil
- const pod=new THREE.Mesh(new THREE.CapsuleGeometry(55,240,6,12),M.batt);pod.rotation.z=Math.PI/2;pod.position.set(620,GY,0);pod.castShadow=true;foilG.add(pod);
- const propD=new THREE.Mesh(new THREE.CylinderGeometry(95,95,10,20),new THREE.MeshBasicMaterial({color:0x5fd0ff,transparent:true,opacity:.28}));
- propD.rotation.z=Math.PI/2;propD.position.set(490,GY,0);foilG.add(propD);}
+ // water motor torpedo pod SLUNG UNDER the main foil on a short pylon,
+ // prop AFT of the wing's trailing edge — nothing intersects the wing,
+ // and the prop disc stays above the foot pads so it never touches ground
+ foilG.add(tube(new THREE.Vector3(430,GY-8,0),new THREE.Vector3(430,GY-62,0),18,M.carbon));
+ const pod=new THREE.Mesh(new THREE.CapsuleGeometry(55,240,6,16),M.batt);pod.rotation.z=Math.PI/2;pod.position.set(430,GY-70,0);pod.castShadow=true;foilG.add(pod);
+ const propD=new THREE.Mesh(new THREE.CylinderGeometry(95,95,10,28),new THREE.MeshBasicMaterial({color:0x5fd0ff,transparent:true,opacity:.28}));
+ propD.rotation.z=Math.PI/2;propD.position.set(250,GY-70,0);foilG.add(propD);}
 
 // CARGO BAY
 const cargoG=part('Open cargo area',400,'2 kg',
@@ -364,23 +410,52 @@ const chG=part('Ballistic parachute',5000,'9 kg (exempt)',
  new THREE.Vector3(-500,500,0),new THREE.Vector3(-780,box_h+300,0));
 {const c=new THREE.Mesh(new THREE.CylinderGeometry(85,85,200,20),M.red);c.position.set(-780,box_h+250,0);c.castShadow=true;chG.add(c);}
 
+// REAR PUSHER — the Sikorsky X2 trick (Matt's ask 2026-07-16). P1 ONLY.
+// The lift rotors carry the weight; a separate pusher does the SHOVING, so the rotors
+// never have to tilt hard into the wind (which is what strangles a multirotor's speed).
+// Bolts to a flat bulkhead face on the tail cone — P2 gets the SAME bolt face, no motor.
+const pushG=part('Rear pusher (X2-style)',1500,'~10 kg installed',
+ 'Rear pusher prop on its own motor — the Sikorsky X2 trick. Lift rotors hold you up, the pusher drives you forward, so the rotors stay level instead of tilting into the wind. Buys roughly 75-80 mph vs 50-65 on rotor-tilt alone (honest: the X2 also had rigid rotors + RPM scheduling we do NOT have — no 250 kt here). P1 ONLY: P2 keeps the bolt face and skips the mass.',
+ new THREE.Vector3(-700,0,0), new THREE.Vector3(-1720,box_h+105,0));
+window._push=pushG;
+{const TX=-1300, CY=box_h+105;
+ // flat bolt-face bulkhead on the tail cone — present in BOTH configs (P2 = pusher-ready)
+ const face=new THREE.Mesh(new THREE.CylinderGeometry(105,105,22,20),M.silver);
+ face.rotation.z=Math.PI/2; face.position.set(TX-10,CY,0); face.castShadow=true; pushG.add(face);
+ for(let i=0;i<6;i++){const a=Math.PI*2*i/6;const bolt=new THREE.Mesh(new THREE.CylinderGeometry(9,9,30,8),M.gold);
+   bolt.rotation.z=Math.PI/2; bolt.position.set(TX-14,CY+78*Math.sin(a),78*Math.cos(a)); pushG.add(bolt);}
+ window._pushFace=face;
+ // the bolt-on module itself (P1 only): motor can, spinner, 32" prop
+ const mod=new THREE.Group(); pushG.add(mod); window._pushMod=mod;
+ const can=new THREE.Mesh(new THREE.CylinderGeometry(78,78,150,24),M.carbon);
+ can.rotation.z=Math.PI/2; can.position.set(TX-105,CY,0); can.castShadow=true; mod.add(can);
+ const gold=new THREE.Mesh(new THREE.CylinderGeometry(62,62,154,24),M.gold);
+ gold.rotation.z=Math.PI/2; gold.position.set(TX-105,CY,0); mod.add(gold);
+ const spin=new THREE.Mesh(new THREE.ConeGeometry(72,120,20),M.carbonL);
+ spin.rotation.z=Math.PI/2; spin.position.set(TX-240,CY,0); spin.castShadow=true; mod.add(spin);
+ // 32" pusher blade (spins in the vertical plane) + its disc
+ const pb=new THREE.Mesh(new THREE.BoxGeometry(46,813,9),M.blade);
+ pb.position.set(TX-190,CY,0); pb.castShadow=true; mod.add(pb); window._pushBlade=pb;
+ const pd=new THREE.Mesh(new THREE.CylinderGeometry(406,406,3,40),M.disc);
+ pd.rotation.z=Math.PI/2; pd.position.set(TX-190,CY,0); mod.add(pd);}
+
 // ---- canopy open/close: hinge the glass + frame at the rear so it lifts open ----
 const canopyPivot=new THREE.Group(); canopyPivot.position.set(-760, box_h+180, 0); craft.add(canopyPivot);
 if(window._glass) canopyPivot.attach(window._glass);
 canopyPivot.attach(cfG);
 window._canopyPivot=canopyPivot;
 
-// ---- price total ----
-const total=parts.reduce((s,p)=>s+(p.g.userData.info.price||0),0)
-  + 3*340 + 3*360 + 3*1999 + 3*420;  // other 3 of each ×4 group already counted once; add remaining 3
-// simpler: recompute honestly
-let TOTAL=0; for(const p of parts) TOTAL+=p.g.userData.info.price||0;
-// arms/esc/motors/props were created 4× each as separate parts, so they're already summed correctly
-document.getElementById('tot').textContent='$'+TOTAL.toLocaleString();
+// (price total display removed — per-part prices still show when you click a part)
+
+// remember each part's resting position AFTER the canopy re-parenting above —
+// the canopy frame lives inside the hinge pivot with a non-zero offset, and the
+// explode slider must add to that offset, not overwrite it (overwriting is what
+// left the canopy frame floating open/misplaced after open→close)
+for(const p of parts) p.base=p.g.position.clone();
 
 // ---- UI ----
 const $=id=>document.getElementById(id), card=document.getElementById('card');
-$('explode').addEventListener('input',e=>{const t=e.target.value/100;for(const p of parts)p.g.position.copy(p.explode).multiplyScalar(t);});
+$('explode').addEventListener('input',e=>{const t=e.target.value/100;for(const p of parts)p.g.position.copy(p.base).addScaledVector(p.explode,t);});
 $('labels').addEventListener('change',e=>{craft.traverse(o=>{if(o.userData.isLabel)o.visible=e.target.checked;});});
 $('spin').addEventListener('change',e=>controls.autoRotate=e.target.checked);
 $('water').addEventListener('change',e=>{waterGrp.visible=e.target.checked;
@@ -396,6 +471,35 @@ function flyTo(pos,tgt){controls.autoRotate=false;$('spin').checked=false;
   camera.position.set(...pos);controls.target.set(...tgt);controls.update();}
 $('btnCockpit').addEventListener('click',()=>flyTo([1950,1050,60],[100,box_h+350,0]));
 $('btnOrbit').addEventListener('click',()=>flyTo([3600,2100,3600],[0,500,0]));
+// ---- config switch: same airframe, different pack + legal lane ----
+function applyConfig(){
+  const c=C();
+  // swap the pack in the bay (bay + rails stay sized for the BIG pack either way)
+  if(window._pack){window._pack.geometry.dispose();window._pack.geometry=new THREE.BoxGeometry(...c.packBox);}
+  M.shell.color.setHex(c.shellColor); M.shell.needsUpdate=true;
+  // the pusher MODULE is P1-only; the bolt face stays on both (P2 = pusher-ready)
+  if(window._pushMod) window._pushMod.visible=c.pusher;
+  if(window._pushMod) window._pushMod.traverse(o=>o.visible=c.pusher);
+  batG.userData.info.name=`Quick-swap pack — ${c.kwh} kWh`;
+  batG.userData.info.mass=`${c.packMass} kg`;
+  batG.userData.info.spec=`${c.name}. Pack: ${c.kwh} kWh / ${c.packMass} kg → ${c.endur}. Legal lane: ${c.lane}. The bay, rails and connector are sized for the BIG pack in BOTH builds — swapping is a one-minute job, not a redesign.`;
+  $('dims').innerHTML=`X8 coax · 14.0 ft across props · 8.5 ft long<br>~5.5 ft tall · <b>~${c.empty} kg empty</b>`;
+  $('cfgLine').innerHTML=`<b>${c.name}</b><br>${c.kwh} kWh · ${c.packMass} kg pack · ${c.endur}<br><span style="opacity:.75">${c.lane}</span>`;
+  const on='#5c3a12', onB='#a06a22', off='#163a63', offB='#2f6099';
+  $('cfgP1').style.background=CUR==='p1'?on:off; $('cfgP1').style.borderColor=CUR==='p1'?onB:offB;
+  $('cfgP2').style.background=CUR==='p2'?on:off; $('cfgP2').style.borderColor=CUR==='p2'?onB:offB;
+  $('cfgLine').style.background=CUR==='p1'?'rgba(90,60,20,.35)':'rgba(20,70,60,.35)';
+}
+$('cfgP1').addEventListener('click',()=>{CUR='p1';applyConfig();});
+$('cfgP2').addEventListener('click',()=>{CUR='p2';applyConfig();});
+applyConfig();
+const VIEWS={front:[[4600,800,0],[0,500,0]], back:[[-4600,800,0],[0,500,0]],
+             side:[[0,800,4600],[0,500,0]], top:[[0,5400,60],[0,500,0]]};
+$('vF').addEventListener('click',()=>flyTo(...VIEWS.front));
+$('vB').addEventListener('click',()=>flyTo(...VIEWS.back));
+$('vS').addEventListener('click',()=>flyTo(...VIEWS.side));
+$('vT').addEventListener('click',()=>flyTo(...VIEWS.top));
+{const v=new URLSearchParams(location.search).get('view'); if(v&&VIEWS[v]) flyTo(...VIEWS[v]);}
 controls.addEventListener('start',()=>{controls.autoRotate=false;$('spin').checked=false;});
 
 const ray=new THREE.Raycaster(),ptr=new THREE.Vector2();let down=null;
@@ -412,7 +516,9 @@ addEventListener('pointerup',e=>{
 });
 addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);});
 let sp=0;
-renderer.setAnimationLoop(()=>{sp+=.3;for(const b of spinBlades)b.rotation.y=sp;controls.update();renderer.render(scene,camera);});
+renderer.setAnimationLoop(()=>{sp+=.3;for(const b of spinBlades)b.rotation.y=b.userData.rev?-sp:sp;
+  if(window._pushBlade&&C().pusher) window._pushBlade.rotation.x=sp*1.6;  // pusher spins in its own plane
+  controls.update();renderer.render(scene,camera);});
 </script>
 </body>
 </html>
