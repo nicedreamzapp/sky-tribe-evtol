@@ -23,6 +23,29 @@
   #card .mass{font-size:11px;opacity:.7;margin-bottom:4px}
   #card p{font-size:11px;line-height:1.45;margin:4px 0 0}
   #hint{position:fixed;bottom:12px;left:14px;color:#dce8ff;font-size:10px;opacity:.5;z-index:3}
+  /* ---- PRESENTATION MODE (?present=1) ---- */
+  body.present #panel,body.present #hud,body.present #hint,body.present #card{display:none!important}
+  #show{position:fixed;inset:0;z-index:5;pointer-events:none;display:none;
+    font-family:-apple-system,Helvetica,sans-serif;color:#eaf4ff}
+  body.present #show{display:block}
+  #vig{position:absolute;inset:0;background:radial-gradient(ellipse at 50% 45%,transparent 45%,rgba(2,5,12,.72) 100%)}
+  #bars::before,#bars::after{content:'';position:absolute;left:0;right:0;height:5vh;background:#04070d}
+  #bars::before{top:0}#bars::after{bottom:0}
+  #ttl{position:absolute;left:6vw;bottom:16vh;max-width:60vw}
+  #ttl h1{margin:0;font-size:clamp(28px,4.4vw,72px);font-weight:800;letter-spacing:-.02em;
+    text-shadow:0 4px 40px rgba(0,0,0,.8)}
+  #ttl p{margin:6px 0 0;font-size:clamp(13px,1.35vw,22px);opacity:.85;font-weight:500}
+  #ttl .rule{width:64px;height:4px;background:#7dffb0;border-radius:2px;margin:14px 0 12px}
+  #stats{position:absolute;right:6vw;bottom:16vh;display:flex;gap:26px;align-items:flex-end}
+  .stat{text-align:right}
+  .stat b{display:block;font-size:clamp(22px,3.1vw,48px);font-weight:800;color:#7dffb0;line-height:1;
+    text-shadow:0 3px 26px rgba(0,0,0,.75)}
+  .stat span{display:block;font-size:clamp(9px,.82vw,13px);opacity:.72;margin-top:6px;
+    text-transform:uppercase;letter-spacing:.12em}
+  #brand{position:absolute;left:6vw;top:8vh;font-size:12px;letter-spacing:.34em;opacity:.5;font-weight:700}
+  #prog{position:absolute;left:0;bottom:5vh;height:2px;background:#7dffb0;width:0;opacity:.6}
+  .fade{animation:fu .8s ease both}
+  @keyframes fu{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
 </style>
 </head>
 <body>
@@ -50,6 +73,13 @@
 </div>
 <div id="card"><h2 id="cName"></h2><div class="price" id="cPrice"></div><div class="mass" id="cMass"></div><p id="cSpec"></p></div>
 <div id="hint">🪑 cockpit button flies you into the seat · explode slider pulls it apart</div>
+<div id="show">
+  <div id="vig"></div><div id="bars"></div>
+  <div id="brand">SKY TRIBE · OPEN SOURCE</div>
+  <div id="ttl"><h1></h1><div class="rule"></div><p></p></div>
+  <div id="stats"></div>
+  <div id="prog"></div>
+</div>
 
 <script type="importmap">
 {"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js",
@@ -58,32 +88,55 @@
 <script type="module">
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x0a0f1a);
 const camera = new THREE.PerspectiveCamera(46, innerWidth/innerHeight, 5, 40000);
 camera.position.set(2900, 1500, 3400);
-const renderer = new THREE.WebGLRenderer({antialias:true});
+// preserveDrawingBuffer so the 2D compositor can drawImage() the rendered frame
+// (without it the GL buffer is already cleared and the composite comes out black)
+const renderer = new THREE.WebGLRenderer({antialias:true, preserveDrawingBuffer:true});
 renderer.setSize(innerWidth, innerHeight);
-renderer.setPixelRatio(devicePixelRatio);
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
 renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+// film response instead of raw linear light — this is most of why CG "looks CG"
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 0.95;
 document.body.appendChild(renderer.domElement);
+
+// IMAGE-BASED LIGHTING: real surfaces need something to REFLECT. Without an
+// environment, carbon and glass have nothing to mirror and read as flat plastic.
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+// dusk-sky gradient backdrop (also what the canopy and carbon reflect)
+{const c=document.createElement('canvas');c.width=2;c.height=256;const g=c.getContext('2d');
+ const grd=g.createLinearGradient(0,0,0,256);
+ grd.addColorStop(0,'#12233d'); grd.addColorStop(.55,'#0d1626'); grd.addColorStop(1,'#05080e');
+ g.fillStyle=grd; g.fillRect(0,0,2,256);
+ const t=new THREE.CanvasTexture(c); t.colorSpace=THREE.SRGBColorSpace;
+ scene.background=t;}
+scene.fog = new THREE.Fog(0x0b1220, 7000, 22000);
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.target.set(150, 550, 0);
 controls.autoRotate = false; controls.autoRotateSpeed = 0.9;
 
-scene.add(new THREE.HemisphereLight(0xcfe3ff, 0x1a2436, 1.15));
-const key = new THREE.DirectionalLight(0xffffff, 2.0);
-key.position.set(2600, 4200, 1800); key.castShadow = true;
-key.shadow.mapSize.set(2048,2048); key.shadow.camera.far = 12000;
-key.shadow.camera.left=-3000;key.shadow.camera.right=3000;key.shadow.camera.top=3000;key.shadow.camera.bottom=-3000;
+// three-point lighting: warm low sun key, cool sky fill, hard rim to draw the silhouette
+scene.add(new THREE.HemisphereLight(0x9fc4ff, 0x121a26, 0.5));
+const key = new THREE.DirectionalLight(0xffd9b0, 3.2);
+key.position.set(2600, 3000, 1800); key.castShadow = true;
+key.shadow.mapSize.set(4096,4096); key.shadow.camera.far = 14000;
+key.shadow.camera.left=-3400;key.shadow.camera.right=3400;key.shadow.camera.top=3400;key.shadow.camera.bottom=-3400;
+key.shadow.bias=-0.0006; key.shadow.normalBias=12; key.shadow.radius=4;
 scene.add(key);
-scene.add(new THREE.DirectionalLight(0x88aaff, 0.5).translateX(-2000));
+const fill = new THREE.DirectionalLight(0x6f9cff, 0.85); fill.position.set(-2600,1400,-1200); scene.add(fill);
+const rim  = new THREE.DirectionalLight(0xbfe6ff, 2.2);  rim.position.set(-1800,900,-2600);  scene.add(rim);
 
-const ground = new THREE.Mesh(new THREE.CircleGeometry(9000,64),
-  new THREE.MeshStandardMaterial({color:0x11182a, roughness:1}));
+const ground = new THREE.Mesh(new THREE.CircleGeometry(9000,96),
+  new THREE.MeshStandardMaterial({color:0x0e1420, roughness:0.72, metalness:0.05, envMapIntensity:0.5}));
 ground.rotation.x = -Math.PI/2; ground.position.y = -560; ground.receiveShadow = true; scene.add(ground);
-const grid = new THREE.GridHelper(14000,56,0x2a3d5c,0x18243c); grid.position.y=-559; scene.add(grid);
+const grid = new THREE.GridHelper(14000,56,0x24365a,0x151f34); grid.position.y=-559;
+grid.material.transparent=true; grid.material.opacity=.35; scene.add(grid);
 
 // WATER (buoyancy): all-up ~241 kg (156 empty + 85 pilot) displaces ~241 L.
 // Sealed hull holds ~650 L, so it floats with only the bottom ~20 cm of
@@ -99,22 +152,45 @@ const wlRing = new THREE.Mesh(new THREE.TorusGeometry(1500,16,8,64), new THREE.M
 wlRing.rotation.x = -Math.PI/2; wlRing.position.y = WL+2; waterGrp.add(wlRing);
 waterGrp.visible = false;
 
-// materials
+// MATERIALS — physically plausible, not "shiny grey".
+// Carbon fibre is NOT a metal: metalness ~0 + a clearcoat lacquer on top. That
+// clearcoat is what gives real carbon its wet, deep look. A woven normal map
+// (generated below) gives the twill its texture instead of a flat surface.
+function weaveMap(px=512, tile=16){
+  const c=document.createElement('canvas'); c.width=c.height=px; const g=c.getContext('2d');
+  g.fillStyle='#8080ff'; g.fillRect(0,0,px,px);              // flat normal
+  const s=px/tile;
+  for(let y=0;y<tile;y++)for(let x=0;x<tile;x++){
+    const over=(x+y)%2===0;                                   // 2x2 twill over/under
+    const grd=g.createLinearGradient(x*s,y*s, over?(x+1)*s:x*s, over?y*s:(y+1)*s);
+    grd.addColorStop(0,'#6f6fff'); grd.addColorStop(.5,'#8080ff'); grd.addColorStop(1,'#9191ff');
+    g.fillStyle=grd; g.fillRect(x*s,y*s,s,s);
+  }
+  const t=new THREE.CanvasTexture(c); t.wrapS=t.wrapT=THREE.RepeatWrapping; t.repeat.set(6,6); return t;
+}
+const WEAVE = weaveMap();
 const M = {
-  carbon: new THREE.MeshStandardMaterial({color:0x1c1f26, metalness:.5, roughness:.4}),
-  shell:  new THREE.MeshStandardMaterial({color:0x525b68, metalness:.5, roughness:.42, side:THREE.DoubleSide}),
-  carbonL:new THREE.MeshStandardMaterial({color:0x2a2e37, metalness:.45, roughness:.45}),
-  silver: new THREE.MeshStandardMaterial({color:0xafb8c4, metalness:.8, roughness:.28}),
-  gold:   new THREE.MeshStandardMaterial({color:0xd8b24a, metalness:.85, roughness:.3}),
-  blade:  new THREE.MeshStandardMaterial({color:0x101216, roughness:.5, metalness:.3}),
-  disc:   new THREE.MeshBasicMaterial({color:0x7fc4ff, transparent:true, opacity:.08, side:THREE.DoubleSide}),
-  batt:   new THREE.MeshStandardMaterial({color:0x33373f, roughness:.55, metalness:.35}),
-  green:  new THREE.MeshStandardMaterial({color:0x39c46f, roughness:.5, emissive:0x08240f}),
-  seat:   new THREE.MeshStandardMaterial({color:0x14161b, roughness:.7}),
-  glass:  new THREE.MeshPhysicalMaterial({color:0xcdeeff, transparent:true, opacity:.16, roughness:.02, metalness:0, clearcoat:1, clearcoatRoughness:.03, side:THREE.DoubleSide}),
-  screen: new THREE.MeshStandardMaterial({color:0x0a2a44, emissive:0x1e6fb0, emissiveIntensity:.7}),
-  red:    new THREE.MeshStandardMaterial({color:0xd63a4f, roughness:.5}),
-  strap:  new THREE.MeshStandardMaterial({color:0x9a1c1c, roughness:.8}),
+  carbon: new THREE.MeshPhysicalMaterial({color:0x15171c, metalness:.05, roughness:.34,
+            clearcoat:1, clearcoatRoughness:.06, normalMap:WEAVE, normalScale:new THREE.Vector2(.35,.35), envMapIntensity:1.1}),
+  shell:  new THREE.MeshPhysicalMaterial({color:0x525b68, metalness:.12, roughness:.22,
+            clearcoat:1, clearcoatRoughness:.05, envMapIntensity:1.3, side:THREE.DoubleSide}),
+  carbonL:new THREE.MeshPhysicalMaterial({color:0x23262d, metalness:.05, roughness:.42,
+            clearcoat:.8, clearcoatRoughness:.12, normalMap:WEAVE, normalScale:new THREE.Vector2(.25,.25), envMapIntensity:1}),
+  silver: new THREE.MeshStandardMaterial({color:0xb9c2ce, metalness:1, roughness:.22, envMapIntensity:1.4}),
+  gold:   new THREE.MeshStandardMaterial({color:0xd8b24a, metalness:1, roughness:.24, envMapIntensity:1.4}),
+  blade:  new THREE.MeshPhysicalMaterial({color:0x0d0f13, metalness:.05, roughness:.3,
+            clearcoat:1, clearcoatRoughness:.08, envMapIntensity:1.2}),
+  disc:   new THREE.MeshBasicMaterial({color:0x7fc4ff, transparent:true, opacity:.055, side:THREE.DoubleSide, depthWrite:false}),
+  batt:   new THREE.MeshPhysicalMaterial({color:0x2b2f36, metalness:.35, roughness:.5, clearcoat:.3, envMapIntensity:.9}),
+  green:  new THREE.MeshStandardMaterial({color:0x39c46f, roughness:.45, metalness:.2, emissive:0x0d3a1a, emissiveIntensity:.8}),
+  seat:   new THREE.MeshPhysicalMaterial({color:0x121419, roughness:.78, metalness:.02, sheen:.6, sheenColor:new THREE.Color(0x30405a)}),
+  // real glass: light passes THROUGH it (transmission), it doesn't just fade out
+  glass:  new THREE.MeshPhysicalMaterial({color:0xdff2ff, transmission:.94, thickness:14, ior:1.5,
+            roughness:.045, metalness:0, clearcoat:1, clearcoatRoughness:.03,
+            transparent:true, opacity:1, envMapIntensity:1.6, side:THREE.DoubleSide}),
+  screen: new THREE.MeshStandardMaterial({color:0x07202f, emissive:0x2183cc, emissiveIntensity:1.1, roughness:.15}),
+  red:    new THREE.MeshPhysicalMaterial({color:0xd63a4f, roughness:.35, clearcoat:1, clearcoatRoughness:.1}),
+  strap:  new THREE.MeshStandardMaterial({color:0x8f1a1a, roughness:.85, metalness:0}),
   pilot:  new THREE.MeshStandardMaterial({color:0x5b7fb0, roughness:.6, transparent:true, opacity:.5}),
 };
 
@@ -145,7 +221,7 @@ function loftHull(stations, mat, openFrom, openTo){
     // leave the TOP open across the cockpit/cargo region so the canopy reveals the interior
     // (opening is cut SMALLER than the glass footprint so the closed canopy overlaps
     //  the hull edge all the way around — reads sealed, no gap)
-    if(openFrom!==undefined && xMid>openFrom && xMid<openTo && Math.sin(ang)>0.42) continue;
+    if(openFrom!==undefined && xMid>openFrom && xMid<openTo && Math.sin(ang)>0.50) continue;
     const a=s*M+i,b=s*M+(i+1)%M,c=(s+1)*M+i,d=(s+1)*M+(i+1)%M;idx.push(a,c,b,b,c,d);}
   // nose + tail caps
   const nose=stations[stations.length-1], tail=stations[0];
@@ -159,10 +235,15 @@ function loftHull(stations, mat, openFrom, openTo){
   const m=new THREE.Mesh(g,mat); m.castShadow=true; return m;
 }
 // loft ONLY the top arc (canopy glass that hugs the body silhouette)
+// Glass arc MUST reach well below the hull's cut line or you get a daylight gap
+// along the sill. Hull is cut at sin(a)>0.50 (30 deg); glass runs from 0.06pi
+// (~11 deg) so it laps ~19 deg of solid hull on each side — a real overlap, not a
+// hairline. GLASS_A0/A1 are shared with the frame so the two can't drift apart.
+const GLASS_A0=Math.PI*0.06, GLASS_A1=Math.PI*0.94, GLASS_OUT=1.012;
 function loftCanopyTop(stations, mat){
   stations=smoothStations(stations,20);
-  const M=36, a0=Math.PI*0.13, a1=Math.PI*0.87, verts=[], idx=[];
-  const rings=stations.map(s=>{const r=[];for(let i=0;i<M;i++){const a=a0+(a1-a0)*i/(M-1);r.push([s.x, s.cy+s.h*1.02*Math.sin(a), s.w*1.02*Math.cos(a)]);}return r;});
+  const M=36, a0=GLASS_A0, a1=GLASS_A1, verts=[], idx=[];
+  const rings=stations.map(s=>{const r=[];for(let i=0;i<M;i++){const a=a0+(a1-a0)*i/(M-1);r.push([s.x, s.cy+s.h*GLASS_OUT*Math.sin(a), s.w*GLASS_OUT*Math.cos(a)]);}return r;});
   rings.forEach(r=>r.forEach(p=>verts.push(p[0],p[1],p[2])));
   for(let s=0;s<rings.length-1;s++)for(let i=0;i<M-1;i++){const a=s*M+i,b=s*M+i+1,c=(s+1)*M+i,d=(s+1)*M+i+1;idx.push(a,c,b,b,c,d);}
   const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(verts,3));g.setIndex(idx);g.computeVertexNormals();
@@ -242,22 +323,41 @@ const tubG=part('Cockpit tub (waterproof)',3500,'22 kg',
    {x:-760, cy:box_h+170, w:330, h:310},
  ];
  const _glass=loftCanopyTop(canStations, M.glass); tubG.add(_glass); window._glass=_glass;
+ // REAR BULKHEAD (added 2026-07-16 — Matt spotted the hole from the back view).
+ // The cockpit opening was cut through the deck with NOTHING closing it off aft, so
+ // you looked straight down the inside of the fuselage. No aircraft is built that way:
+ // the cabin ends at a structural bulkhead behind the pilot, and the canopy seals
+ // against it. This is also what makes the "sealed waterproof shell" claim true —
+ // an open mouth aft would take spray straight into the cabin on a water landing.
+ // Sized 4% oversize so it buries into the hull skin instead of leaving a hairline.
+ {const bx=-700;                       // aft edge of the canopy opening
+  const t=(bx-(-850))/((-350)-(-850)); // interpolate the station between -850 and -350
+  const cy=box_h+120+t*115, w=(300+t*135)*1.04, h=(230+t*145)*1.04;
+  const mat=M.carbonL.clone(); mat.side=THREE.DoubleSide;
+  const bh=new THREE.Mesh(new THREE.CircleGeometry(1,56), mat);
+  bh.rotation.y=Math.PI/2; bh.scale.set(w,h,1); bh.position.set(bx,cy,0);
+  bh.castShadow=true; bh.receiveShadow=true; tubG.add(bh);
+  // rolled lip around the bulkhead edge = the canopy's rear sealing face
+  const lip=new THREE.Mesh(new THREE.TorusGeometry(1,0.028,10,56), M.carbon);
+  lip.rotation.y=Math.PI/2; lip.scale.set(w,h,Math.max(w,h)); lip.position.set(bx,cy,0); tubG.add(lip);}
 }
 
 // FRAMED CANOPY — carbon fighter-style frame over the glass (openable, hinged at rear)
 const cfG=part('Framed canopy (openable)',1400,'8 kg',
  'Carbon-fiber space-frame canopy: flat tinted glass panels held between structural frame bows and rails, hinged at the rear to lift open like a fighter jet. Latches and seals at the front — waterproof when closed.',
  new THREE.Vector3(-150,650,0),new THREE.Vector3(150,box_h+620,0));
-{const F=M.carbon, a0=Math.PI*0.13, a1=Math.PI*0.87;
- // same stations as the canopy glass, so the frame OUTLINES the glass edge and latches to the body
+{const F=M.carbon, a0=GLASS_A0, a1=GLASS_A1;
+ // same stations AND same arc as the canopy glass, so the frame sits ON the glass edge
+ // instead of floating proud of it (the old 1.05 offset was the visible "gap")
  const cs=[{x:700,cy:box_h+175,w:360,h:325},{x:300,cy:box_h+275,w:435,h:435},{x:-120,cy:box_h+295,w:445,h:450},{x:-460,cy:box_h+245,w:410,h:400},{x:-760,cy:box_h+170,w:330,h:310}];
- const P=(s,a)=>new THREE.Vector3(s.x, s.cy+s.h*1.05*Math.sin(a), s.w*1.05*Math.cos(a));
+ const FO=GLASS_OUT+0.012;
+ const P=(s,a)=>new THREE.Vector3(s.x, s.cy+s.h*FO*Math.sin(a), s.w*FO*Math.cos(a));
  // two sill rails (frame edges that sit flush on the fuselage where glass meets body)
  // — run along the SMOOTHED silhouette so the rails follow the glass with no kinks
  const csS=smoothStations(cs,16);
  for(let i=0;i<csS.length-1;i++){cfG.add(tube(P(csS[i],a0),P(csS[i+1],a0),17,F));cfG.add(tube(P(csS[i],a1),P(csS[i+1],a1),17,F));}
  // windscreen frame (front arc) + rear frame (rear arc)
- const arc=(s)=>{let prev=null;for(let k=0;k<=8;k++){const a=a0+(a1-a0)*k/8;const p=P(s,a);if(prev)cfG.add(tube(prev,p,17,F));prev=p;}};
+ const arc=(s)=>{let prev=null;for(let k=0;k<=20;k++){const a=a0+(a1-a0)*k/20;const p=P(s,a);if(prev)cfG.add(tube(prev,p,17,F));prev=p;}};
  arc(cs[0]); arc(cs[cs.length-1]);
  // one clean center spine following the roofline (smoothed, no kinks)
  let prev=null;for(const s of csS){const p=P(s,Math.PI/2);if(prev)cfG.add(tube(prev,p,15,F));prev=p;}
@@ -331,8 +431,18 @@ for(const [f,s] of [[1,1],[1,-1],[-1,1],[-1,-1]]){
    'Tapered carbon boom + diagonal brace, both bolted to one spar-box corner. Triangulated = stiff. Carries one motor.',
    corner.clone().add(mp).multiplyScalar(.5).sub(new THREE.Vector3(0,0,0)).multiplyScalar(1).setY(0).setX(f*300).setZ(s*300).add(new THREE.Vector3(0,900,0)),
    mp.clone().add(new THREE.Vector3(0,-250,0)));
- armG.add(tube(corner,mp.clone().add(new THREE.Vector3(0,-55,0)),34,M.silver));
- armG.add(tube(new THREE.Vector3(f*120,box_h+30,s*120),corner.clone().add(mp).multiplyScalar(.5),22,M.silver));
+ // main boom: spar-box corner lug -> motor mount
+ armG.add(tube(corner,mp.clone().add(new THREE.Vector3(0,-55,0)),34,M.carbon));
+ // KING-POST BRACE (fixed 2026-07-16): the old brace started near the CENTRE of the
+ // craft and flew diagonally OVER the cockpit — it read like a roll cage and made no
+ // structural sense. Real answer: a short compression post standing on the same
+ // spar-box corner, with a brace from its top down to the boom's outer third. All of
+ // it lives at the corner, nothing crosses the canopy, and the triangle is closed.
+ {const postTop=corner.clone().add(new THREE.Vector3(0,430,0));
+  const outer=corner.clone().lerp(mp,0.62);
+  armG.add(tube(corner,postTop,26,M.carbon));      // compression post
+  armG.add(tube(postTop,outer,19,M.silver));       // brace to boom
+  const gus=new THREE.Mesh(new THREE.SphereGeometry(34,16,12),M.silver); gus.position.copy(postTop); armG.add(gus);}
  // ESC pair (one per motor, stacked at the arm root)
  const escG=part(`ESC pair ${ci}`,720,'2.2 kg',
    'TWO high-voltage motor controllers at the arm root, in the cool airflow — one per coax motor, fully independent so a dead ESC only takes its own motor. Potted for weather.',
@@ -515,8 +625,132 @@ addEventListener('pointerup',e=>{
   $('cMass').textContent='mass: '+i.mass;$('cSpec').textContent=i.spec;card.style.display='block';
 });
 addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);});
+// ================= PRESENTATION MODE (?present=1) =================
+// A scripted camera + stat overlay run over the SAME model — no separate deck to
+// drift out of sync with the CAD. Every number below is one we can defend.
+const SHOW=[
+ {d:6, cfg:'p1', cam:[[4200,2400,4200],[3100,1500,3100]], tgt:[0,500,0],
+  h:'SKY TRIBE', p:'Open-source single-seat eVTOL · built in America',
+  s:[['8','motors'],['1','seat'],['0','patents']]},
+ {d:7, cfg:'p1', cam:[[0,900,4200],[-1500,700,3600]], tgt:[0,450,0],
+  h:'COAXIAL X8', p:'Two counter-rotating motors on every arm. Any one can die.',
+  s:[['9-15%','coax cost'],['1','failure survived'],['350mm','rotor spacing']]},
+ {d:6, cfg:'p1', cam:[[2000,1050,60],[1500,900,700]], tgt:[100,600,0],
+  h:'ONE PILOT', p:'Framed canopy, sealed cabin, cargo well behind the seat',
+  s:[['4-point','harness'],['3','voting computers']]},
+ {d:6, cfg:'p1', cam:[[-3000,700,2600],[-3600,900,1400]], tgt:[-400,400,0],
+  h:'REAR PUSHER', p:'The Sikorsky X2 trick — rotors lift, the pusher shoves',
+  s:[['75-80','mph'],['32in','pusher prop']]},
+ {d:6, cfg:'p1', cam:[[2600,300,2600],[2200,150,2900]], tgt:[0,-100,0],
+  h:'LANDS ON WATER', p:'Hydrofoil gear doubles as the skid · sealed hull floats',
+  s:[['2.7x','reserve buoyancy'],['650L','sealed hull']]},
+ {d:7, cfg:'p1', cam:[[3400,1500,3400],[3400,1500,-3400]], tgt:[0,500,0],
+  h:'P1 — THE FAT CRAZY ONE', p:'No weight fight. Big pack, pusher, margin everywhere.',
+  s:[['176kg','empty'],['14','kWh'],['35-40','min cruise']]},
+ {d:7, cfg:'p2', cam:[[-3400,1500,3400],[3400,1500,3400]], tgt:[0,500,0],
+  h:'P2 — THE LIGHT ONE', p:'Part 103 · no licence, no registration, no permission',
+  s:[['124kg','empty'],['5','kWh'],['9kg','still to lose']]},
+ {d:7, cfg:'p1', cam:[[3800,2200,3800],[4600,2600,4600]], tgt:[0,500,0],
+  h:'NOT A WEAPON', p:'Nobody flies it until it is proven. github.com/nicedreamzapp/sky-tribe-evtol',
+  s:[['OPEN','source'],['CERN-OHL-S','licence']]},
+];
+const PRESENT = new URLSearchParams(location.search).get('present')==='1';
+const RECORD  = new URLSearchParams(location.search).get('rec')==='1';
+let showT0=0, showBeat=-1;
+// COMPOSITOR: captureStream() grabs ONLY the WebGL canvas, not the HTML title/stat
+// overlay drawn on top — so we paint both into one 2D canvas and record THAT.
+let COMP=null, COMPX=null, compBeat=null;
+function drawOverlay(){
+  if(!COMP) return;
+  const w=COMP.width, h=COMP.height, x=COMPX;
+  x.clearRect(0,0,w,h);
+  x.drawImage(renderer.domElement,0,0,w,h);              // the 3D
+  // cinematic bars + vignette
+  x.fillStyle='#04070d'; x.fillRect(0,0,w,h*0.05); x.fillRect(0,h*0.95,w,h*0.05);
+  const g=x.createRadialGradient(w*.5,h*.45,h*.3,w*.5,h*.45,h*.9);
+  g.addColorStop(0,'rgba(0,0,0,0)'); g.addColorStop(1,'rgba(2,5,12,.7)');
+  x.fillStyle=g; x.fillRect(0,0,w,h);
+  const b=SHOW[showBeat]||SHOW[0];
+  // brand
+  x.font='700 '+Math.round(h*.017)+'px -apple-system'; x.fillStyle='rgba(220,235,255,.55)';
+  x.textAlign='left'; x.fillText('SKY TRIBE · OPEN SOURCE', w*.06, h*.11);
+  // title + rule + subtitle (bottom-left)
+  x.textAlign='left'; x.fillStyle='#eaf4ff';
+  x.font='800 '+Math.round(h*.062)+'px -apple-system';
+  x.shadowColor='rgba(0,0,0,.85)'; x.shadowBlur=30; x.shadowOffsetY=4;
+  x.fillText(b.h, w*.06, h*.80);
+  x.shadowBlur=0; x.shadowOffsetY=0;
+  x.fillStyle='#7dffb0'; x.fillRect(w*.06, h*.825, w*.045, h*.006);
+  x.font='500 '+Math.round(h*.022)+'px -apple-system'; x.fillStyle='rgba(234,244,255,.85)';
+  x.fillText(b.p, w*.06, h*.875);
+  // stats (bottom-right)
+  x.textAlign='right'; let sx=w*.94;
+  for(let k=b.s.length-1;k>=0;k--){
+    const val=b.s[k][0], lab=b.s[k][1];
+    x.font='800 '+Math.round(h*.05)+'px -apple-system'; x.fillStyle='#7dffb0';
+    x.shadowColor='rgba(0,0,0,.8)'; x.shadowBlur=22;
+    x.fillText(val, sx, h*.80); x.shadowBlur=0;
+    x.font='600 '+Math.round(h*.013)+'px -apple-system'; x.fillStyle='rgba(234,244,255,.72)';
+    x.fillText(lab.toUpperCase(), sx, h*.835);
+    x.font='800 '+Math.round(h*.05)+'px -apple-system';
+    sx-=Math.max(x.measureText(val).width, x.measureText(lab.toUpperCase()).width)+w*.03;
+  }
+  // progress bar
+  const TOT=SHOW.reduce((a,c)=>a+c.d,0), tt=(performance.now()/1000-showT0)%TOT;
+  x.fillStyle='rgba(125,255,176,.6)'; x.fillRect(0,h*.95-3,w*(tt/TOT),3);
+}
+// Record the COMPOSITOR canvas (3D + text) → clean, no terminal, full quality.
+function startCanvasRecord(seconds){
+  COMP=document.createElement('canvas');
+  COMP.width=1600; COMP.height=Math.round(1600*innerHeight/innerWidth);
+  COMPX=COMP.getContext('2d');
+  const stream=COMP.captureStream(30);
+  // VP8 transcodes far more reliably than VP8's canvas-stream VP9 output
+  let mime='video/webm;codecs=vp8';
+  if(!MediaRecorder.isTypeSupported(mime)) mime='video/webm';
+  const rec=new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond:14000000});
+  const chunks=[]; rec.ondataavailable=e=>{if(e.data.size)chunks.push(e.data);};
+  rec.onstop=()=>{const blob=new Blob(chunks,{type:'video/webm'});
+    const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+    a.download='sky_tribe_presentation.webm'; a.click();
+    COMP=null; document.title='REC_DONE'; };
+  rec.start(); document.title='REC_RUNNING';
+  setTimeout(()=>rec.stop(), seconds*1000);
+}
+const V3=a=>new THREE.Vector3(...a);
+const ease=t=>t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;
+if(PRESENT){
+  document.body.classList.add('present');
+  controls.enabled=false; controls.autoRotate=false;
+  showT0=performance.now()/1000;
+  if(RECORD){ const TOT=SHOW.reduce((a,b)=>a+b.d,0);
+    setTimeout(()=>startCanvasRecord(TOT+0.4), 600); }
+}
+function runShow(){
+  const TOT=SHOW.reduce((a,b)=>a+b.d,0);
+  let t=(performance.now()/1000-showT0)%TOT, acc=0, i=0;
+  for(;i<SHOW.length;i++){ if(t<acc+SHOW[i].d) break; acc+=SHOW[i].d; }
+  const b=SHOW[i], lt=(t-acc)/b.d, e=ease(Math.min(1,lt));
+  camera.position.copy(V3(b.cam[0]).lerp(V3(b.cam[1]), e));
+  camera.lookAt(V3(b.tgt));
+  document.getElementById('prog').style.width=(t/TOT*100)+'%';
+  if(i!==showBeat){
+    showBeat=i;
+    if(b.cfg!==CUR){ CUR=b.cfg; applyConfig(); }
+    const ttl=document.getElementById('ttl');
+    ttl.querySelector('h1').textContent=b.h;
+    ttl.querySelector('p').textContent=b.p;
+    ttl.classList.remove('fade'); void ttl.offsetWidth; ttl.classList.add('fade');
+    const st=document.getElementById('stats');
+    st.innerHTML=b.s.map(x=>`<div class="stat"><b>${x[0]}</b><span>${x[1]}</span></div>`).join('');
+    st.classList.remove('fade'); void st.offsetWidth; st.classList.add('fade');
+  }
+}
+
 let sp=0;
-renderer.setAnimationLoop(()=>{sp+=.3;for(const b of spinBlades)b.rotation.y=b.userData.rev?-sp:sp;
+renderer.setAnimationLoop(()=>{sp+=.3;
+  if(PRESENT) runShow();
+  if(COMP) drawOverlay();  // paint 3D+text into the recorded canvasfor(const b of spinBlades)b.rotation.y=b.userData.rev?-sp:sp;
   if(window._pushBlade&&C().pusher) window._pushBlade.rotation.x=sp*1.6;  // pusher spins in its own plane
   controls.update();renderer.render(scene,camera);});
 </script>
