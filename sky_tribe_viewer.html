@@ -457,10 +457,27 @@ for(const [f,s] of [[1,1],[1,-1],[-1,1],[-1,-1]]){
  const escG=part(`ESC pair ${ci}`,720,'2.2 kg',
    'TWO high-voltage motor controllers at the arm root, in the cool airflow — one per coax motor, fully independent so a dead ESC only takes its own motor. Potted for weather.',
    new THREE.Vector3(f*250,box_h+120,s*250),elbow.clone().add(new THREE.Vector3(0,120,0)));
- // ESCs ride ON the boom's outboard run (they used to float in mid-air beside it)
+ // FAIRED ESC PODS (2026-07-16 — Matt: "what are the two little black blocks?").
+ // They WERE unexplained bare boxes. Now each is a real-looking controller: a
+ // streamlined pod clamped to the boom, with a ram-air inlet facing forward and
+ // finned heatsink ribs on top. Two per arm — one per coax motor, independent.
  {const seat=corner.clone().lerp(elbow,0.72);
-  for(const dy of [46,132]){const e=new THREE.Mesh(new THREE.BoxGeometry(150,80,78),M.carbonL);
-    e.position.set(seat.x,seat.y+dy,seat.z); e.rotation.y=Math.atan2(s,f)+Math.PI/4; e.castShadow=true; escG.add(e);}}
+  const yaw=Math.atan2(s*460, f*320);              // align the pod with the boom's run
+  for(const dy of [58,150]){
+    const pod=new THREE.Group(); pod.position.set(seat.x,seat.y+dy,seat.z); pod.rotation.y=-yaw;
+    // body: rounded streamlined pod (not a brick)
+    const body=new THREE.Mesh(new THREE.CapsuleGeometry(42,120,8,18),M.carbonL);
+    body.rotation.z=Math.PI/2; body.castShadow=true; pod.add(body);
+    // ram-air inlet ring at the leading end
+    const inlet=new THREE.Mesh(new THREE.CylinderGeometry(30,38,16,18),M.silver);
+    inlet.rotation.z=Math.PI/2; inlet.position.x=98; pod.add(inlet);
+    // heatsink fins along the top
+    for(let k=-2;k<=2;k++){const fin=new THREE.Mesh(new THREE.BoxGeometry(96,16,4),M.silver);
+      fin.position.set(0,44,k*13); fin.castShadow=true; pod.add(fin);}
+    // clamp straps onto the boom
+    for(const cx of [-46,46]){const cl=new THREE.Mesh(new THREE.TorusGeometry(46,5,8,20),M.silver);
+      cl.rotation.y=Math.PI/2; cl.position.x=cx; pod.add(cl);}
+    escG.add(pod);}}
  // coax motor pair — X8 (Matt's call 2026-07-15: 8 smaller motors = motor-out survival)
  const moG=part(`Coax motors ${ci} — 2× U13-class`,2200,'5.0 kg (pair)',
    'TWO smaller motors stacked on one arm tip, spinning opposite directions (coax X8). Any single motor or ESC can die and the aircraft keeps flying — the reason Jetson ONE is an X8. Costs ~5-8% hover efficiency vs a flat quad; worth it with a pilot aboard. Exact motor model pends the Round-5 trade study.',
@@ -468,13 +485,21 @@ for(const [f,s] of [[1,1],[1,-1],[-1,1],[-1,-1]]){
  {for(const dy of [55,-95]){const can=new THREE.Mesh(new THREE.CylinderGeometry(62,62,85,24),M.carbon);can.position.copy(mp).add(new THREE.Vector3(0,dy,0));can.castShadow=true;moG.add(can);
    const g=new THREE.Mesh(new THREE.CylinderGeometry(50,50,89,24),M.gold);g.position.copy(mp).add(new THREE.Vector3(0,dy,0));moG.add(g);}}
  // coax props — top puller + bottom pusher, counter-rotating
- const prG=part(`Coax props ${ci} — 2× 54"`,700,'1.8 kg (pair)',
-   'Two 54-inch (1.37 m) carbon props per arm, counter-rotating. Slightly smaller than the quad\'s 62" because there are eight discs now — disk loading stays low enough to hover efficiently.',
+ // 62" RESTORED 2026-07-16: I had shrunk these to 54" on the false reasoning that
+ // "there are eight discs now". Wrong — a coax pair stacks on ONE axis, so there are
+ // still only FOUR disc locations and the arm spacing never changed. The 54" prop
+ // threw away 24% of disc area and pushed hover power from ~46 kW to ~53 kW for
+ // nothing. 62" fits: 475mm clear between adjacent discs, 662mm tip reach vs a
+ // 465mm body half-width.
+ const prG=part(`Coax props ${ci} — 2× 62"`,840,'2.4 kg (pair)',
+   'Two 62-inch (1.58 m) carbon props per arm, counter-rotating. A coax pair shares ONE disc axis, so the X8 still has four discs — the same big, slow, efficient discs the quad had. Disk loading ~33 kg/m².',
    new THREE.Vector3(0,700,0),mp.clone().add(new THREE.Vector3(0,200,0)));
- // Round-5 verified rule: coax planes >= 0.25 rotor diameters apart (54" prop -> >=343 mm); we use 350 mm
- {const bl=new THREE.Mesh(new THREE.BoxGeometry(1372,9,52),M.blade);bl.position.copy(mp).add(new THREE.Vector3(0,150,0));bl.rotation.y=(f*35+s*55)*Math.PI/180;bl.castShadow=true;prG.add(bl);spinBlades.push(bl);
-  const bl2=new THREE.Mesh(new THREE.BoxGeometry(1372,9,52),M.blade);bl2.position.copy(mp).add(new THREE.Vector3(0,-200,0));bl2.rotation.y=(f*55+s*35)*Math.PI/180;bl2.userData.rev=true;bl2.castShadow=true;prG.add(bl2);spinBlades.push(bl2);
-  for(const dy of [144,-206]){const d=new THREE.Mesh(new THREE.CylinderGeometry(686,686,3,48),M.disc);d.position.copy(mp).add(new THREE.Vector3(0,dy,0));prG.add(d);}}
+ // Round-5 verified rule: coax planes >= 0.25 rotor diameters apart.
+ // 62" prop -> 0.25 x 1575 = 394mm required; we use 400mm (was 350, which was only
+ // legal for the 54" prop I wrongly specified).
+ {const bl=new THREE.Mesh(new THREE.BoxGeometry(1575,9,55),M.blade);bl.position.copy(mp).add(new THREE.Vector3(0,175,0));bl.rotation.y=(f*35+s*55)*Math.PI/180;bl.castShadow=true;prG.add(bl);spinBlades.push(bl);
+  const bl2=new THREE.Mesh(new THREE.BoxGeometry(1575,9,55),M.blade);bl2.position.copy(mp).add(new THREE.Vector3(0,-225,0));bl2.rotation.y=(f*55+s*35)*Math.PI/180;bl2.userData.rev=true;bl2.castShadow=true;prG.add(bl2);spinBlades.push(bl2);
+  for(const dy of [169,-231]){const d=new THREE.Mesh(new THREE.CylinderGeometry(787,787,3,48),M.disc);d.position.copy(mp).add(new THREE.Vector3(0,dy,0));prG.add(d);}}
 }
 
 // BATTERY — QUICK-SWAP BAY (Matt's call 2026-07-15: one bay, two legal packs)
@@ -687,26 +712,47 @@ function drawOverlay(){
   // brand
   x.font='700 '+Math.round(h*.017)+'px -apple-system'; x.fillStyle='rgba(220,235,255,.55)';
   x.textAlign='left'; x.fillText('SKY TRIBE · OPEN SOURCE', w*.06, h*.11);
-  // title + rule + subtitle (bottom-left)
+
+  // MEASURE THE STATS BLOCK FIRST so the title can never run into it
+  // (the title used to be drawn at a fixed size and collided with the first stat).
+  const statF=Math.round(h*.05), labF=Math.round(h*.013), gap=w*.03;
+  let statsW=0;
+  for(const [val,lab] of b.s){
+    x.font='800 '+statF+'px -apple-system'; const vw=x.measureText(val).width;
+    x.font='600 '+labF+'px -apple-system'; const lw=x.measureText(lab.toUpperCase()).width;
+    statsW+=Math.max(vw,lw)+gap;
+  }
+  const titleRoom=w*.94-statsW-w*.06-gap;   // what's actually left for the title
+
+  // title + rule + subtitle (bottom-left), shrunk to fit the room it really has
   x.textAlign='left'; x.fillStyle='#eaf4ff';
-  x.font='800 '+Math.round(h*.062)+'px -apple-system';
+  let tf=Math.round(h*.062);
+  x.font='800 '+tf+'px -apple-system';
+  while(x.measureText(b.h).width>titleRoom && tf>Math.round(h*.026)){
+    tf-=2; x.font='800 '+tf+'px -apple-system';
+  }
   x.shadowColor='rgba(0,0,0,.85)'; x.shadowBlur=30; x.shadowOffsetY=4;
   x.fillText(b.h, w*.06, h*.80);
   x.shadowBlur=0; x.shadowOffsetY=0;
   x.fillStyle='#7dffb0'; x.fillRect(w*.06, h*.825, w*.045, h*.006);
-  x.font='500 '+Math.round(h*.022)+'px -apple-system'; x.fillStyle='rgba(234,244,255,.85)';
-  x.fillText(b.p, w*.06, h*.875);
+  // subtitle gets the full width — nothing sits beside it
+  let sf=Math.round(h*.022); x.font='500 '+sf+'px -apple-system';
+  while(x.measureText(b.p).width>w*.86 && sf>Math.round(h*.013)){
+    sf-=1; x.font='500 '+sf+'px -apple-system';
+  }
+  x.fillStyle='rgba(234,244,255,.85)'; x.fillText(b.p, w*.06, h*.875);
+
   // stats (bottom-right)
   x.textAlign='right'; let sx=w*.94;
   for(let k=b.s.length-1;k>=0;k--){
     const val=b.s[k][0], lab=b.s[k][1];
-    x.font='800 '+Math.round(h*.05)+'px -apple-system'; x.fillStyle='#7dffb0';
+    x.font='800 '+statF+'px -apple-system'; x.fillStyle='#7dffb0';
     x.shadowColor='rgba(0,0,0,.8)'; x.shadowBlur=22;
     x.fillText(val, sx, h*.80); x.shadowBlur=0;
-    x.font='600 '+Math.round(h*.013)+'px -apple-system'; x.fillStyle='rgba(234,244,255,.72)';
+    x.font='600 '+labF+'px -apple-system'; x.fillStyle='rgba(234,244,255,.72)';
     x.fillText(lab.toUpperCase(), sx, h*.835);
-    x.font='800 '+Math.round(h*.05)+'px -apple-system';
-    sx-=Math.max(x.measureText(val).width, x.measureText(lab.toUpperCase()).width)+w*.03;
+    x.font='800 '+statF+'px -apple-system';
+    sx-=Math.max(x.measureText(val).width, x.measureText(lab.toUpperCase()).width)+gap;
   }
   // progress bar
   const TOT=SHOW.reduce((a,c)=>a+c.d,0), tt=(performance.now()/1000-showT0)%TOT;

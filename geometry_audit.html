@@ -109,7 +109,7 @@ for(const [f,s,label] of [[1,1,'front-right'],[1,-1,'front-left'],[-1,1,'rear-ri
 
 // ---------- 3. ROTOR / PROP CLEARANCES ----------
 {
-  const propR=686, rotorZ=1025, rotorX=1025;
+  const propR=787, rotorZ=1025, rotorX=1025;
   // prop tip vs fuselage: does a spinning 54" disc reach the body?
   const distToCentre=Math.hypot(rotorX,rotorZ);           // 1449mm
   const tipReach=distToCentre-propR;                       // closest approach to the centreline
@@ -123,11 +123,11 @@ for(const [f,s,label] of [[1,1,'front-right'],[1,-1,'front-left'],[-1,1,'rear-ri
       overlap<=0?`${(-overlap).toFixed(0)}mm clear between discs`:`discs OVERLAP by ${overlap.toFixed(0)}mm`);
   // rotor plane vs canopy roof
   const roofY=Math.max(...canStations.map(s=>s.cy+s.h*GLASS_OUT));
-  const lowerPropY=RP-200;   // bottom prop of the coax pair
+  const lowerPropY=RP-225;   // bottom prop of the coax pair
   add('rotor plane above canopy', lowerPropY>roofY?'OK':'FAIL',
       `lowest prop at y=${lowerPropY}mm vs canopy roof y=${roofY.toFixed(0)}mm → ${(lowerPropY-roofY).toFixed(0)}mm`);
   // coax spacing rule from round-5 research: >= 0.25 rotor diameters
-  const coaxGap=150-(-200), need=0.25*2*propR;
+  const coaxGap=175-(-225), need=0.25*2*propR;
   add('coax spacing >= 0.25D (round-5 rule)', coaxGap>=need?'OK':'FAIL',
       `${coaxGap}mm actual vs ${need.toFixed(0)}mm required (0.25 x ${(2*propR)}mm dia)`);
 }
@@ -135,7 +135,7 @@ for(const [f,s,label] of [[1,1,'front-right'],[1,-1,'front-left'],[-1,1,'rear-ri
 // ---------- 4. PROP vs ARM STRUCTURE ----------
 {
   // the climb segment ends at the motor; make sure the boom doesn't sit inside the disc sweep
-  const propR=686;
+  const propR=787;
   const mp=new THREE.Vector3(1025,RP,1025);
   const elbow=new THREE.Vector3(820,box_h+90,820);
   // vertical distance from the lower prop plane down to the boom at the point where
@@ -144,7 +144,7 @@ for(const [f,s,label] of [[1,1,'front-right'],[1,-1,'front-left'],[-1,1,'rear-ri
   for(let i=0;i<=100;i++){
     const p=new THREE.Vector3().lerpVectors(elbow,mp,i/100);
     const horiz=Math.hypot(p.x-mp.x,p.z-mp.z);
-    if(horiz<propR){ const v=(RP-200)-p.y; if(v<minVert) minVert=v; }
+    if(horiz<propR){ const v=(RP-225)-p.y; if(v<minVert) minVert=v; }
   }
   add('lower prop vs its own boom', minVert>0?'OK':'FAIL',
       minVert>0?`boom stays ${minVert.toFixed(0)}mm below the lower disc where it passes underneath`
