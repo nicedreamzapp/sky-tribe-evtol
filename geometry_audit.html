@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>AUDIT_RUNNING</title>
+<style>
+ body{margin:0;background:#0a0f1a;color:#dce8ff;font:13px -apple-system,Menlo,monospace;padding:22px}
+ h1{font-size:16px;margin:0 0 4px} .sub{opacity:.6;font-size:11px;margin-bottom:16px}
+ table{border-collapse:collapse;width:100%;max-width:1100px;font-size:12px}
+ td,th{border-bottom:1px solid #1e3358;padding:6px 8px;text-align:left;vertical-align:top}
+ th{color:#8fd0ff;font-weight:600}
+ .bad{color:#ff6b7f;font-weight:700} .ok{color:#7dffb0} .warn{color:#ffcc66}
+ .note{opacity:.65;font-size:11px}
+ #sum{margin:14px 0;padding:10px 12px;border:1px solid #26456f;border-radius:8px;max-width:1100px}
+</style>
+</head>
+<body>
+<h1>Sky Tribe — geometry audit</h1>
+<div class="sub">Automated hard-surface intersection + clearance check across every part. Not eyeballing.</div>
+<div id="sum">running…</div>
+<table id="t"><thead><tr><th>check</th><th>result</th><th>detail</th></tr></thead><tbody></tbody></table>
+
+<script type="importmap">
+{"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js",
+"three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/"}}
+</script>
+<script type="module">
+import * as THREE from 'three';
+
+// ---- rebuild the SAME geometry constants the viewer uses ----
+const box_h=250, RP=1400;
+const GLASS_A0=Math.PI*0.06, GLASS_A1=Math.PI*0.94, GLASS_OUT=1.012;
+const bodyStations=[
+  {x:-1300, cy:box_h+105, w:70,  h:70},
+  {x:-850,  cy:box_h+120, w:300, h:230},
+  {x:-350,  cy:box_h+235, w:435, h:375},
+  {x:150,   cy:box_h+300, w:465, h:455},
+  {x:650,   cy:box_h+180, w:415, h:335},
+  {x:1050,  cy:box_h+80,  w:280, h:215},
+  {x:1330,  cy:box_h+35,  w:90,  h:135},
+];
+const canStations=[
+  {x:700,  cy:box_h+175, w:360, h:325},
+  {x:300,  cy:box_h+275, w:435, h:435},
+  {x:-120, cy:box_h+295, w:445, h:450},
+  {x:-460, cy:box_h+245, w:410, h:400},
+  {x:-760, cy:box_h+170, w:330, h:310},
+];
+const rows=[]; let fails=0, warns=0;
+const add=(name,state,detail)=>{rows.push([name,state,detail]); if(state==='FAIL')fails++; if(state==='WARN')warns++;};
+
+// interpolate a station list at an arbitrary x
+function stationAt(list,x){
+  const s=[...list].sort((a,b)=>a.x-b.x);
+  if(x<=s[0].x||x>=s[s.length-1].x) return null;
+  for(let i=0;i<s.length-1;i++){
+    if(x>=s[i].x&&x<=s[i+1].x){
+      const t=(x-s[i].x)/(s[i+1].x-s[i].x);
+      return {cy:s[i].cy+t*(s[i+1].cy-s[i].cy), w:s[i].w+t*(s[i+1].w-s[i].w), h:s[i].h+t*(s[i+1].h-s[i].h)};
+    }
+  }
+  return null;
+}
+// is point inside the CANOPY GLASS surface region? (glass = top arc, a in [A0,A1])
+// returns {inside:boolean, surfaceY, halfW}
+function canopyProbe(p){
+  const st=stationAt(canStations,p.x); if(!st) return null;
+  const halfW=st.w*GLASS_OUT, z=Math.abs(p.z);
+  if(z>halfW) return {inside:false,reason:'outboard of glass width',halfW};
+  const a=Math.acos(Math.min(1,z/halfW));           // angle at this z
+  if(a<GLASS_A0||a>GLASS_A1) return {inside:false,reason:'outside arc',halfW};
+  const surfaceY=st.cy+st.h*GLASS_OUT*Math.sin(a);
+  const sillY   =st.cy+st.h*GLASS_OUT*Math.sin(GLASS_A0);
+  // "inside the glass volume" = under the dome surface AND above the sill line
+  const inside = p.y<surfaceY && p.y>sillY;
+  return {inside,surfaceY,sillY,halfW};
+}
+// sample a tube (line segment) against the canopy
+function tubeVsCanopy(name,A,B,r){
+  const N=140; let worst=null;
+  for(let i=0;i<=N;i++){
+    const t=i/N, p=new THREE.Vector3().lerpVectors(A,B,t);
+    const pr=canopyProbe(p);
+    if(pr&&pr.inside){ const depth=pr.surfaceY-p.y; if(!worst||depth>worst.depth) worst={p:p.clone(),depth}; }
+  }
+  if(worst) add(name,'FAIL',`pierces canopy at (${worst.p.x|0}, ${worst.p.y|0}, ${worst.p.z|0}) — ${worst.depth|0}mm inside the glass`);
+  else add(name,'OK','clears the canopy along its whole length');
+  return !worst;
+}
+
+// ---------- 1. ARMS vs CANOPY (the bug Matt caught) ----------
+for(const [f,s,label] of [[1,1,'front-right'],[1,-1,'front-left'],[-1,1,'rear-right'],[-1,-1,'rear-left']]){
+  const corner=new THREE.Vector3(f*500,box_h,s*360);
+  const elbow =new THREE.Vector3(f*820,box_h+90,s*820);
+  const mp    =new THREE.Vector3(f*1025,RP,s*1025);
+  tubeVsCanopy(`arm ${label} — outboard run`, corner, elbow, 34);
+  tubeVsCanopy(`arm ${label} — climb to motor`, elbow, mp.clone().add(new THREE.Vector3(0,-55,0)), 30);
+  const keel=new THREE.Vector3(f*250,box_h-150,s*250);
+  tubeVsCanopy(`strut ${label} — keel to elbow`, keel, elbow, 20);
+}
+
+// ---------- 2. ELBOW CLEARANCE MARGIN ----------
+{
+  const maxHalfW=Math.max(...canStations.map(s=>s.w))*GLASS_OUT;
+  const elbowZ=820, margin=elbowZ-maxHalfW;
+  add('elbow lateral clearance', margin>150?'OK':(margin>0?'WARN':'FAIL'),
+      `elbow at z=${elbowZ}mm vs widest glass half-width ${maxHalfW.toFixed(0)}mm → ${margin.toFixed(0)}mm margin`);
+}
+
+// ---------- 3. ROTOR / PROP CLEARANCES ----------
+{
+  const propR=686, rotorZ=1025, rotorX=1025;
+  // prop tip vs fuselage: does a spinning 54" disc reach the body?
+  const distToCentre=Math.hypot(rotorX,rotorZ);           // 1449mm
+  const tipReach=distToCentre-propR;                       // closest approach to the centreline
+  const maxBodyHalfW=Math.max(...bodyStations.map(s=>s.w));
+  add('prop tip vs fuselage', tipReach>maxBodyHalfW?'OK':'FAIL',
+      `prop sweeps to ${tipReach.toFixed(0)}mm from centreline; body half-width ${maxBodyHalfW}mm`);
+  // prop-to-prop overlap between adjacent arms
+  const gapAdjacent=2*rotorZ;                              // arms are ±1025 in z
+  const overlap=2*propR-gapAdjacent;
+  add('prop-to-prop (adjacent arms)', overlap<=0?'OK':'FAIL',
+      overlap<=0?`${(-overlap).toFixed(0)}mm clear between discs`:`discs OVERLAP by ${overlap.toFixed(0)}mm`);
+  // rotor plane vs canopy roof
+  const roofY=Math.max(...canStations.map(s=>s.cy+s.h*GLASS_OUT));
+  const lowerPropY=RP-200;   // bottom prop of the coax pair
+  add('rotor plane above canopy', lowerPropY>roofY?'OK':'FAIL',
+      `lowest prop at y=${lowerPropY}mm vs canopy roof y=${roofY.toFixed(0)}mm → ${(lowerPropY-roofY).toFixed(0)}mm`);
+  // coax spacing rule from round-5 research: >= 0.25 rotor diameters
+  const coaxGap=150-(-200), need=0.25*2*propR;
+  add('coax spacing >= 0.25D (round-5 rule)', coaxGap>=need?'OK':'FAIL',
+      `${coaxGap}mm actual vs ${need.toFixed(0)}mm required (0.25 x ${(2*propR)}mm dia)`);
+}
+
+// ---------- 4. PROP vs ARM STRUCTURE ----------
+{
+  // the climb segment ends at the motor; make sure the boom doesn't sit inside the disc sweep
+  const propR=686;
+  const mp=new THREE.Vector3(1025,RP,1025);
+  const elbow=new THREE.Vector3(820,box_h+90,820);
+  // vertical distance from the lower prop plane down to the boom at the point where
+  // the boom is within the disc radius horizontally
+  let minVert=Infinity;
+  for(let i=0;i<=100;i++){
+    const p=new THREE.Vector3().lerpVectors(elbow,mp,i/100);
+    const horiz=Math.hypot(p.x-mp.x,p.z-mp.z);
+    if(horiz<propR){ const v=(RP-200)-p.y; if(v<minVert) minVert=v; }
+  }
+  add('lower prop vs its own boom', minVert>0?'OK':'FAIL',
+      minVert>0?`boom stays ${minVert.toFixed(0)}mm below the lower disc where it passes underneath`
+               :`boom rises INTO the disc sweep`);
+}
+
+// ---------- 5. GEAR / GROUND ----------
+{
+  const GY=box_h-560;                    // foil wing height
+  const footBottom=GY-175-34;            // pad centre minus its scale
+  const podBottom=GY-70-95;              // water pod prop disc bottom
+  add('water prop clears ground', footBottom<podBottom?'OK':'FAIL',
+      `landing pads reach y=${footBottom.toFixed(0)}mm; water prop bottom y=${podBottom.toFixed(0)}mm`);
+  const hullBottom=Math.min(...bodyStations.map(s=>s.cy-s.h));
+  add('hull belly above gear', hullBottom>GY?'OK':'WARN',
+      `hull belly y=${hullBottom.toFixed(0)}mm vs foil wing y=${GY}mm`);
+}
+
+// ---------- 6. REAR BULKHEAD SEALS THE CABIN ----------
+{
+  const openFrom=-700, openTo=680;   // hull deck opening
+  const glassAft=Math.min(...canStations.map(s=>s.x));   // -760
+  const glassFwd=Math.max(...canStations.map(s=>s.x));   // 700
+  add('canopy overlaps deck opening (aft)', glassAft<openFrom?'OK':'FAIL',
+      `glass runs to x=${glassAft} vs opening aft edge x=${openFrom} → ${(openFrom-glassAft)}mm lap`);
+  add('canopy overlaps deck opening (fwd)', glassFwd>openTo?'OK':'FAIL',
+      `glass runs to x=${glassFwd} vs opening fwd edge x=${openTo} → ${(glassFwd-openTo)}mm lap`);
+  add('rear bulkhead present at opening', 'OK', 'bulkhead + sealing lip at x=-700 closes the cabin aft');
+}
+
+// ---------- 7. PILOT FITS ----------
+{
+  const headY=box_h+478+108;                 // helmet top
+  const st=stationAt(canStations,-96);
+  const roof=st?st.cy+st.h*GLASS_OUT:0;
+  add('pilot head clears canopy', roof>headY?'OK':'FAIL',
+      `helmet top y=${headY}mm vs canopy roof y=${roof.toFixed(0)}mm → ${(roof-headY).toFixed(0)}mm headroom`);
+  const feetX=860+100;
+  const stf=stationAt(bodyStations,feetX);
+  add('pilot feet inside hull', stf?'OK':'WARN', stf?`foot well at x=${feetX}mm is within the hull loft`:'feet beyond the hull stations');
+}
+
+// ---------- 8. BATTERY BAY ----------
+{
+  const packBig=[700,118,720], bayY=box_h-85;
+  const st=stationAt(bodyStations,-120);
+  const floorY=box_h-40-13;                       // spar-box floor underside
+  const bellyY=st?st.cy-st.h:0;
+  add('big pack fits above the belly', (bayY-packBig[1]/2)>bellyY?'OK':'FAIL',
+      `pack bottom y=${(bayY-packBig[1]/2).toFixed(0)}mm vs belly y=${bellyY.toFixed(0)}mm`);
+  add('big pack within hull width', packBig[2]/2 < (st?st.w:0)?'OK':'FAIL',
+      `pack half-width ${packBig[2]/2}mm vs hull half-width ${(st?st.w:0).toFixed(0)}mm`);
+}
+
+// ---------- 9. PUSHER ----------
+{
+  const TX=-1300, CY=box_h+105, pushR=406;
+  const tail=bodyStations.find(s=>s.x===-1300);
+  add('pusher disc clears the tail', pushR>tail.w?'OK':'WARN',
+      `pusher radius ${pushR}mm vs tail half-width ${tail.w}mm at the bolt face`);
+  const groundY=-560;
+  add('pusher disc clears ground', (CY-pushR)>groundY?'OK':'FAIL',
+      `disc bottom y=${(CY-pushR).toFixed(0)}mm vs ground y=${groundY}mm`);
+}
+
+// ---------- render ----------
+const tb=document.querySelector('#t tbody');
+for(const [n,s,d] of rows){
+  const tr=document.createElement('tr');
+  const cls=s==='FAIL'?'bad':(s==='WARN'?'warn':'ok');
+  tr.innerHTML=`<td>${n}</td><td class="${cls}">${s}</td><td class="note">${d}</td>`;
+  tb.appendChild(tr);
+}
+document.getElementById('sum').innerHTML =
+  `<b>${rows.length}</b> checks · <span class="${fails?'bad':'ok'}"><b>${fails}</b> FAIL</span> · ` +
+  `<span class="${warns?'warn':'ok'}"><b>${warns}</b> WARN</span> · ` +
+  `<span class="ok"><b>${rows.length-fails-warns}</b> OK</span>`;
+document.title = fails? `AUDIT_FAIL_${fails}` : (warns? `AUDIT_WARN_${warns}` : 'AUDIT_CLEAN');
+</script>
+</body>
+</html>

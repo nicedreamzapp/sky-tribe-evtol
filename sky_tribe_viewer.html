@@ -265,7 +265,9 @@ function makeLabel(t){
 // P2 = "the low-cost lightweight one": the Part 103 production seed, built with P1's lessons.
 // SAME airframe, same X8, same bay. What changes: the pack, the structure diet, the legal lane.
 const CFG = {
-  p1: {name:'P1 — the fat crazy one', kwh:14, packMass:58, packBox:[690,130,700], empty:176,
+  // packBox height 118 (was 130): the audit caught the 14 kWh pack's floor poking 3mm
+  // through the hull belly at the bay station. Same cells, slightly wider footprint.
+  p1: {name:'P1 — the fat crazy one', kwh:14, packMass:58, packBox:[700,118,720], empty:176,
        shellColor:0x525b68, pusher:true,
        lane:'Experimental amateur-built (N-number, licensed pilot)',
        note:'No weight fight. Big pack, margin everywhere, X2-style rear pusher. Proves X8 motor-out, tuning, water, foils, speed. Thrust still caps AUW ~260 kg.',
@@ -431,23 +433,34 @@ for(const [f,s] of [[1,1],[1,-1],[-1,1],[-1,-1]]){
    'Tapered carbon boom + diagonal brace, both bolted to one spar-box corner. Triangulated = stiff. Carries one motor.',
    corner.clone().add(mp).multiplyScalar(.5).sub(new THREE.Vector3(0,0,0)).multiplyScalar(1).setY(0).setX(f*300).setZ(s*300).add(new THREE.Vector3(0,900,0)),
    mp.clone().add(new THREE.Vector3(0,-250,0)));
- // main boom: spar-box corner lug -> motor mount
- armG.add(tube(corner,mp.clone().add(new THREE.Vector3(0,-55,0)),34,M.carbon));
- // KING-POST BRACE (fixed 2026-07-16): the old brace started near the CENTRE of the
- // craft and flew diagonally OVER the cockpit — it read like a roll cage and made no
- // structural sense. Real answer: a short compression post standing on the same
- // spar-box corner, with a brace from its top down to the boom's outer third. All of
- // it lives at the corner, nothing crosses the canopy, and the triangle is closed.
- {const postTop=corner.clone().add(new THREE.Vector3(0,430,0));
-  const outer=corner.clone().lerp(mp,0.62);
-  armG.add(tube(corner,postTop,26,M.carbon));      // compression post
-  armG.add(tube(postTop,outer,19,M.silver));       // brace to boom
-  const gus=new THREE.Mesh(new THREE.SphereGeometry(34,16,12),M.silver); gus.position.copy(postTop); armG.add(gus);}
+ // DOG-LEG BOOM (fixed 2026-07-16 — Matt: "the arm runs directly into the glass").
+ // A straight boom from the spar-box corner (which sits INBOARD, under the cockpit)
+ // up to a rotor plane ABOVE the canopy must cross the canopy's footprint — that's
+ // why the arms cut through the glass. Fix: run the boom OUTBOARD first, low and
+ // below the canopy sill, until it is clear of the canopy's half-width; only then
+ // climb to the rotor plane. ELBOW_Z is the clearance check: canopy half-width maxes
+ // at ~450mm, so an elbow at 820mm is comfortably outside the glass.
+ const elbow = new THREE.Vector3(f*820, box_h+90, s*820);
+ armG.add(tube(corner, elbow, 34, M.carbon));                                  // outboard run (stays low)
+ armG.add(tube(elbow, mp.clone().add(new THREE.Vector3(0,-55,0)), 30, M.carbon)); // climb, clear of glass
+ {const k=new THREE.Mesh(new THREE.SphereGeometry(36,18,14),M.carbon); k.position.copy(elbow); k.castShadow=true; armG.add(k);}
+ // UNDER-BELLY STRUT (fixed 2026-07-16 — Matt caught the brace piercing the canopy).
+ // The previous king-post stood UP through the cockpit glass. Braced-wing aircraft
+ // (Cessna) carry the load with a lift strut BELOW the wing, not a mast through the
+ // cabin. Same here: the strut runs from a keel hardpoint under the belly up-and-out
+ // to the mid-boom. The whole triangle lives BELOW the fuselage and never touches
+ // the canopy. The main boom above still cantilevers off the spar-box corner lug.
+ {const keel=new THREE.Vector3(f*250, box_h-150, s*250);   // hardpoint on the lower keel
+  armG.add(tube(keel, elbow, 20, M.silver));               // strut braces the elbow from below
+  const gus=new THREE.Mesh(new THREE.SphereGeometry(30,16,12),M.silver); gus.position.copy(keel); armG.add(gus);}
  // ESC pair (one per motor, stacked at the arm root)
  const escG=part(`ESC pair ${ci}`,720,'2.2 kg',
    'TWO high-voltage motor controllers at the arm root, in the cool airflow — one per coax motor, fully independent so a dead ESC only takes its own motor. Potted for weather.',
-   new THREE.Vector3(f*250,box_h+120,s*250),corner.clone().add(new THREE.Vector3(f*60,120,s*60)));
- {for(const dy of [0,100]){const e=new THREE.Mesh(new THREE.BoxGeometry(150,90,80),M.carbonL);e.position.set(f*560,box_h+70+dy,s*560);e.castShadow=true;escG.add(e);}}
+   new THREE.Vector3(f*250,box_h+120,s*250),elbow.clone().add(new THREE.Vector3(0,120,0)));
+ // ESCs ride ON the boom's outboard run (they used to float in mid-air beside it)
+ {const seat=corner.clone().lerp(elbow,0.72);
+  for(const dy of [46,132]){const e=new THREE.Mesh(new THREE.BoxGeometry(150,80,78),M.carbonL);
+    e.position.set(seat.x,seat.y+dy,seat.z); e.rotation.y=Math.atan2(s,f)+Math.PI/4; e.castShadow=true; escG.add(e);}}
  // coax motor pair — X8 (Matt's call 2026-07-15: 8 smaller motors = motor-out survival)
  const moG=part(`Coax motors ${ci} — 2× U13-class`,2200,'5.0 kg (pair)',
    'TWO smaller motors stacked on one arm tip, spinning opposite directions (coax X8). Any single motor or ESC can die and the aircraft keeps flying — the reason Jetson ONE is an X8. Costs ~5-8% hover efficiency vs a flat quad; worth it with a pilot aboard. Exact motor model pends the Round-5 trade study.',
