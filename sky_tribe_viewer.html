@@ -318,16 +318,16 @@ function makeLabel(t){
 const CFG = {
   // packBox height 118 (was 130): the audit caught the 14 kWh pack's floor poking 3mm
   // through the hull belly at the bay station. Same cells, slightly wider footprint.
-  p1: {name:'P1 — the fat crazy one', kwh:14, packMass:58, packBox:[1090,120,400], empty:176,
+  p1: {name:'P1 — the fat crazy one', kwh:13, packMass:58, packBox:[1090,120,400], empty:176,
        shellColor:0x525b68, pusher:true,
        lane:'Experimental amateur-built (N-number, licensed pilot)',
        note:'No weight fight. Big pack, margin everywhere, X2-style rear pusher. Proves X8 motor-out, tuning, water, foils, speed. Thrust still caps AUW ~260 kg.',
-       endur:'~35-40 min cruise · ~75-80 mph w/ pusher'},
+       endur:'~21 min cruise · ~75-80 mph w/ pusher'},
   p2: {name:'P2 — the low-cost lightweight one', kwh:5, packMass:20, packBox:[430,110,380], empty:124,
        shellColor:0x5c6675, pusher:false,
        lane:'Part 103 ultralight (no license, no registration)',
        note:'The production seed. Small swap pack + aggressive CF diet, NO pusher — just the bolt-face so one can be added. Target: under the 115.2 kg line — 124 kg as drawn, still ~9 kg to find.',
-       endur:'~10-15 min · ~50-65 mph (rotor-tilt only)'},
+       endur:'~11 min cruise · ~50-65 mph (rotor-tilt only)'},
 };
 let CUR = (new URLSearchParams(location.search).get('cfg')==='p2') ? 'p2' : 'p1';
 const C = () => CFG[CUR];
@@ -577,7 +577,7 @@ for(const [f,s] of [[1,1],[1,-1],[-1,1],[-1,-1]]){
 
 // BATTERY — QUICK-SWAP BAY (Matt's call 2026-07-15: one bay, two legal packs)
 const batG=part('Quick-swap battery bay',9000,'20-58 kg (pack)',
- 'One bay sized for the BIGGEST pack, quick-release rails, one connector, same CG for every pack. Config A (Part 103, no license): small ~5 kWh pack, ~20 kg, ~10-15 min. Config B (Experimental/MOSAIC, licensed pilot): 14 kWh pack, 58 kg, 30-60 min cruise. Same airframe, both legal.',
+ 'One bay sized for the BIGGEST pack, quick-release rails, one connector, same CG for every pack. Config A (Part 103, no license): small ~5 kWh pack, ~20 kg, ~10-15 min. Config B (Experimental/MOSAIC, licensed pilot): 13 kWh pack, 58 kg, 30-60 min cruise. Same airframe, both legal.',
  new THREE.Vector3(0,-750,0),new THREE.Vector3(-80,box_h-65,0));
 {const b=new THREE.Mesh(new THREE.BoxGeometry(...C().packBox),M.batt);b.position.set(-80,box_h-65,0);b.castShadow=true;b.userData.isPack=true;batG.add(b);window._pack=b;
  // swap rails along both sides of the bay — ALWAYS sized for the BIG pack, so either drops in
