@@ -70,6 +70,21 @@ Labour is $0 — it assumes you build it yourself.
 a thrust stand. That is M1, and it answers whether any of this flies before the big
 money moves. Vendor numbers die on the stand. See `project_cost.mjs`.
 
+### You do not build the cockpit first
+The ladder already says M2 and M3 are unmanned and ballasted — so nothing that exists
+for a *person* is needed to prove the machine hovers:
+
+| | | |
+|---|---|---|
+| **Step 1 — M1** | one motor on a stand | **~$5,300** |
+| **Step 2 — M2/M3** | a flying platform: spar box, arms, 8 motors, props, ESCs, battery, computers, plain test skids, tether | **~$33,300** |
+| **Step 3 — M4/M5** | everything a human needs: tub, canopy, seat, panel, chute, foil gear, pusher | **~$18,100** |
+
+The cockpit, the canopy, the parachute and the hydrofoil gear are **$18,100 you can
+defer** until the aircraft has already hovered thousands of times. Build the platform.
+Fly it empty. Add the human last — which is exactly what the safety ladder demanded
+anyway. See `build_order.mjs`.
+
 ## Safety comes before any human ever flies it
 **No person goes aboard until this is proven safe** — unmanned first, then ballasted, across many loads and conditions. The build order is non-negotiable:
 
