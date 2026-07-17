@@ -495,8 +495,8 @@ const seatG=part('Seat + 4-point harness',600,'5 kg',
 const panelG=part('Panel · stick · pedals',2300,'3.5 kg',
  'Fly-by-wire cockpit: curved glass instrument display, right-hand sidestick, left throttle, rudder pedals. All feed the triple-redundant flight computers.',
  new THREE.Vector3(500,300,0),new THREE.Vector3(560,box_h+430,0));
-{const pnl=new THREE.Mesh(new THREE.BoxGeometry(50,220,460),M.carbon);pnl.position.set(620,box_h+300,0);pnl.rotation.z=-.5;pnl.castShadow=true;panelG.add(pnl);
- const scr=new THREE.Mesh(new THREE.BoxGeometry(10,160,380),M.screen);scr.position.set(650,box_h+310,0);scr.rotation.z=-.5;panelG.add(scr);
+{const pnl=new THREE.Mesh(new THREE.BoxGeometry(50,190,420),M.carbon);pnl.position.set(500,box_h+215,0);pnl.rotation.z=-.5;pnl.castShadow=true;panelG.add(pnl);
+ const scr=new THREE.Mesh(new THREE.BoxGeometry(10,140,340),M.screen);scr.position.set(530,box_h+225,0);scr.rotation.z=-.5;panelG.add(scr);
  const stick=new THREE.Mesh(new THREE.CylinderGeometry(18,22,170,12),M.seat);stick.position.set(330,box_h+185,-200);panelG.add(stick);
  const knob=new THREE.Mesh(new THREE.SphereGeometry(30,16,12),M.red);knob.position.set(330,box_h+270,-200);panelG.add(knob);
  const thr=new THREE.Mesh(new THREE.BoxGeometry(120,26,50),M.seat);thr.position.set(315,box_h+190,200);panelG.add(thr);
