@@ -23,8 +23,9 @@ The weight limit was blocking everything, so we stopped letting it. Same airfram
 |---|---|---|
 | Empty | ~176 kg | ~124 kg |
 | Battery | 13 kWh · 58 kg | 5 kWh · 20 kg |
-| Endurance | ~14 min hover / ~21 min cruise | ~7 min hover / ~11 min cruise |
-| Speed | ~75–80 mph (rear pusher) | ~50–65 mph (rotor tilt only) |
+| Endurance | **11.9 min hover · 15.1 min max** | **6.4 min hover · 7.9 min max** |
+| Range | ~15 miles (at 73 mph) | ~6.6 miles (at 60 mph) |
+| Speed | best-range 73 mph · level cruise (pusher) | best-range 60 mph · cruises 9–13° nose-down |
 | Legal lane | Experimental amateur-built (N-number, licensed pilot) | **Part 103 ultralight** — no licence, no registration |
 | Purpose | The learning machine. Flies first. Weight is not a constraint. | The production seed. Built with P1's lessons. |
 
@@ -39,7 +40,10 @@ P1 exists so the program isn't hostage to the 254 lb limit. P2 is the machine an
 - **Safety:** whole-aircraft ballistic parachute (Part 103 weight-exempt)
 
 ## Honest status — what does not close yet
-- **Hover power is ~46 kW at P1's 261 kg all-up**, not the ~25 kW quoted early on. That figure was for a lighter quad with no coax penalty. Weight went up; the coax stack costs 9–15%.
+- **Hover draws ~52 kW at P1's 261 kg all-up**, not the ~25 kW quoted early on. That figure was for a lighter quad, ignored the 9–15% coax penalty, and quoted shaft power rather than what the battery actually pays.
+- **Endurance is the real problem, not speed.** P1 flies **15 minutes** and **15 miles**; P2 flies **8 minutes** and **6.6 miles**. These are hop-across-the-bay machines, not tourers.
+- **Top speed is capped by the rotors, not power.** Past roughly **67 mph** (advance ratio 0.25) the advancing blade runs out of tip margin while the retreating blade loses grip. A pusher does *not* raise that ceiling — it buys a level cruise attitude and better efficiency, nothing more.
+- **A genset would roughly double it:** 5 gallons of petrol ≈ 18 kWh usable-equivalent → **26 minutes and 26 miles** — and under Part 103 *fuel is weight-exempt while batteries are not*. The blocker is that no 20–40 kW generator exists off the shelf in 2026.
 - **Thrust-to-weight is the live risk.** At 50 kg/motor P1 is only 1.35 — and 1.18 with a motor out. It needs **60–70 kg/motor**. **M1 (thrust-standing one motor) is the gate that decides whether P1 flies at all.**
 - **P2 is ~9 kg over** the 115.2 kg Part 103 limit as drawn. The carbon layup has to close that gap.
 - **Foiling doesn't close.** It floats and flies off water today — that part is sound. But the water pod is under-powered for the takeoff hump (~2.2 kW needed, ~2 kW modelled) and the foil is not yet a real cambered section. Foiling is Phase 2.

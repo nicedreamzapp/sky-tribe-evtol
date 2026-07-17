@@ -322,12 +322,12 @@ const CFG = {
        shellColor:0x525b68, pusher:true,
        lane:'Experimental amateur-built (N-number, licensed pilot)',
        note:'No weight fight. Big pack, margin everywhere, X2-style rear pusher. Proves X8 motor-out, tuning, water, foils, speed. Thrust still caps AUW ~260 kg.',
-       endur:'~21 min cruise · ~75-80 mph w/ pusher'},
+       endur:'15 min max · 15 mi · 73 mph best-range'},
   p2: {name:'P2 — the low-cost lightweight one', kwh:5, packMass:20, packBox:[430,110,380], empty:124,
        shellColor:0x5c6675, pusher:false,
        lane:'Part 103 ultralight (no license, no registration)',
        note:'The production seed. Small swap pack + aggressive CF diet, NO pusher — just the bolt-face so one can be added. Target: under the 115.2 kg line — 124 kg as drawn, still ~9 kg to find.',
-       endur:'~11 min cruise · ~50-65 mph (rotor-tilt only)'},
+       endur:'8 min max · 6.6 mi · 60 mph best-range'},
 };
 let CUR = (new URLSearchParams(location.search).get('cfg')==='p2') ? 'p2' : 'p1';
 const C = () => CFG[CUR];
