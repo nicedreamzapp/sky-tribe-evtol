@@ -577,7 +577,7 @@ for(const [f,s] of [[1,1],[1,-1],[-1,1],[-1,-1]]){
 
 // BATTERY — QUICK-SWAP BAY (Matt's call 2026-07-15: one bay, two legal packs)
 const batG=part('Quick-swap battery bay',9000,'20-58 kg (pack)',
- 'One bay sized for the BIGGEST pack, quick-release rails, one connector, same CG for every pack. Config A (Part 103, no license): small ~5 kWh pack, ~20 kg, ~10-15 min. Config B (Experimental/MOSAIC, licensed pilot): 13 kWh pack, 58 kg, 30-60 min cruise. Same airframe, both legal.',
+ 'One bay sized for the BIGGEST pack, quick-release rails, one connector, same CG for every pack. Config A (Part 103, no license): 5 kWh pack, 20 kg, ~8 min. Config B (Experimental/MOSAIC, licensed pilot): 13 kWh pack, 58 kg, ~15 min. Both are short — endurance, not speed, is this aircraft's real problem. Same airframe, both legal.',
  new THREE.Vector3(0,-750,0),new THREE.Vector3(-80,box_h-65,0));
 {const b=new THREE.Mesh(new THREE.BoxGeometry(...C().packBox),M.batt);b.position.set(-80,box_h-65,0);b.castShadow=true;b.userData.isPack=true;batG.add(b);window._pack=b;
  // swap rails along both sides of the bay — ALWAYS sized for the BIG pack, so either drops in
@@ -636,7 +636,7 @@ const chG=part('Ballistic parachute',5000,'9 kg (exempt)',
 // never have to tilt hard into the wind (which is what strangles a multirotor's speed).
 // Bolts to a flat bulkhead face on the tail cone — P2 gets the SAME bolt face, no motor.
 const pushG=part('Rear pusher (X2-style)',1500,'~10 kg installed',
- 'Rear pusher prop on its own motor — the Sikorsky X2 trick. Lift rotors hold you up, the pusher drives you forward, so the rotors stay level instead of tilting into the wind. Buys roughly 75-80 mph vs 50-65 on rotor-tilt alone (honest: the X2 also had rigid rotors + RPM scheduling we do NOT have — no 250 kt here). P1 ONLY: P2 keeps the bolt face and skips the mass.',
+ 'Rear pusher prop on its own motor — the Sikorsky X2 trick. Lift rotors hold you up, the pusher drives you forward, so the rotors stay level instead of tilting into the wind. It does NOT raise the top speed — that ceiling is set by the rotors (advance ratio ~0.25, about 67 mph), not by power. What it buys is a LEVEL cruise attitude and better efficiency at speed: P2 must fly 9-13 degrees nose-down to lean into its own drag. P1 ONLY: P2 keeps the bolt face and skips the mass.',
  new THREE.Vector3(-700,0,0), new THREE.Vector3(-2070,box_h+60,0));
 window._push=pushG;
 {const TX=-1650, CY=box_h+60;
@@ -750,17 +750,17 @@ const SHOW=[
   h:'ONE PILOT', p:'Framed canopy, sealed cabin, cargo well behind the seat',
   s:[['4-point','harness'],['3','voting computers']]},
  {d:6, cfg:'p1', cam:[[-3000,700,2600],[-3600,900,1400]], tgt:[-400,400,0],
-  h:'REAR PUSHER', p:'The Sikorsky X2 trick — rotors lift, the pusher shoves',
-  s:[['75-80','mph'],['32in','pusher prop']]},
+  h:'REAR PUSHER', p:'Rotors lift, the pusher drives — so it cruises level, not nose-down',
+  s:[['0°','cruise attitude'],['32in','pusher prop']]},
  {d:6, cfg:'p1', cam:[[2600,300,2600],[2200,150,2900]], tgt:[0,-100,0],
   h:'LANDS ON WATER', p:'Hydrofoil gear doubles as the skid · sealed hull floats',
   s:[['2.7x','reserve buoyancy'],['650L','sealed hull']]},
  {d:7, cfg:'p1', cam:[[3400,1500,3400],[3400,1500,-3400]], tgt:[0,500,0],
   h:'P1 — THE FAT CRAZY ONE', p:'No weight fight. Big pack, pusher, margin everywhere.',
-  s:[['176kg','empty'],['14','kWh'],['35-40','min cruise']]},
+  s:[['176kg','empty'],['13','kWh'],['15','min · 15 mi']]},
  {d:7, cfg:'p2', cam:[[-3400,1500,3400],[3400,1500,3400]], tgt:[0,500,0],
   h:'P2 — THE LIGHT ONE', p:'Part 103 · no licence, no registration, no permission',
-  s:[['124kg','empty'],['5','kWh'],['9kg','still to lose']]},
+  s:[['124kg','empty'],['8','min · 6.6 mi'],['9kg','still to lose']]},
  {d:7, cfg:'p1', cam:[[3800,2200,3800],[4600,2600,4600]], tgt:[0,500,0],
   h:'NOT A WEAPON', p:'Nobody flies it until it is proven. github.com/nicedreamzapp/sky-tribe-evtol',
   s:[['OPEN','source'],['CERN-OHL-S','licence']]},
