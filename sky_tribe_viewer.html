@@ -57,7 +57,7 @@
     <button id="vF">Front</button><button id="vB">Back</button><button id="vS">Side</button><button id="vT">Top</button>
   </div>
   <div style="display:flex;gap:3px;margin-top:3px">
-    <button id="cfgP1" style="background:#5c3a12;border-color:#a06a22">P1 heavy</button><button id="cfgP2">P2 diet</button>
+    <button id="cfgP1" style="background:#5c3a12;border-color:#a06a22">P1 batt</button><button id="cfgP2">P2 light</button><button id="cfgP3">P3 fuel</button>
   </div>
   <div id="cfgLine" style="font-size:10px;line-height:1.45;margin:4px 0 2px;padding:4px 6px;background:rgba(90,60,20,.35);border-radius:5px"></div>
   <b>EXPLODE</b><input type="range" id="explode" min="0" max="100" value="0">
@@ -324,12 +324,21 @@ const CFG = {
        note:'No weight fight. Big pack, margin everywhere, X2-style rear pusher. Proves X8 motor-out, tuning, water, foils, speed. Thrust still caps AUW ~260 kg.',
        endur:'15 min max · 15 mi · 73 mph best-range'},
   p2: {name:'P2 — the low-cost lightweight one', kwh:5, packMass:20, packBox:[430,110,380], empty:124,
-       shellColor:0x5c6675, pusher:false,
+       shellColor:0x5c6675, pusher:false, genset:false,
        lane:'Part 103 ultralight (no license, no registration)',
        note:'The production seed. Small swap pack + aggressive CF diet, NO pusher — just the bolt-face so one can be added. Target: under the 115.2 kg line — 124 kg as drawn, still ~9 kg to find.',
        endur:'8 min max · 6.6 mi · 60 mph best-range'},
+  // P3 — the hybrid. Same airframe again. The battery bay becomes a fuel tank, and a
+  // petrol engine turning a generator feeds the same 8 motors. Part 103 counts the
+  // machinery but NOT the fuel, which is the whole reason this is worth doing:
+  // +4 kg of counted weight buys 3.5x the energy.
+  p3: {name:'P3 — the hybrid', kwh:45, packMass:62, packBox:[700,110,300], empty:181,
+       shellColor:0x4a5560, pusher:true, genset:true,
+       lane:'Experimental amateur-built — 5 gal shown, but P1/P3 have NO fuel cap',
+       note:'Series hybrid: engine → generator → one DC bus → all 8 motors, every rotor still independently controlled. 5 gal of petrol = 172 kWh thermal ≈ 43 kWh electrical at 25%. The buffer battery is NOT a peak-smoother — a multirotor cannot autorotate, so it must carry a full landing if the engine quits.',
+       endur:'49 min hover · 62 min cruise · ~60 mi'},
 };
-let CUR = (new URLSearchParams(location.search).get('cfg')==='p2') ? 'p2' : 'p1';
+let CUR = ['p2','p3'].includes(new URLSearchParams(location.search).get('cfg')) ? new URLSearchParams(location.search).get('cfg') : 'p1';
 const C = () => CFG[CUR];
 
 const craft=new THREE.Group();scene.add(craft);
@@ -583,6 +592,65 @@ const batG=part('Quick-swap battery bay',9000,'20-58 kg (pack)',
  // swap rails along both sides of the bay — ALWAYS sized for the BIG pack, so either drops in
  for(const z of [-215,215]) batG.add(tube(new THREE.Vector3(-640,box_h-130,z),new THREE.Vector3(480,box_h-130,z),14,M.silver));}
 
+// ===================== HYBRID GENSET (P3 only) =====================
+// Layout is driven by CG, not by what looks tidy. The rotors are centred on x=0, so
+// the mass has to balance there. The engine is ~400mm tall and simply does not fit
+// under the seat (there is ~200mm between the keel and the seat pan), so it lives
+// just aft of the seat back where the body is still deep. That puts a big mass aft,
+// which is why the fuel sits low and central rather than in the nose — and because
+// the fuel is near the CG, burning it off barely moves the balance.
+const gensetG=part('Hybrid genset — engine + generator',8800,'63 kg',
+ 'Salvage snowmobile-class engine (~90 kW, derated hard) turning an Emrax-class generator. ~60 kW shaft → ~52 kW electrical, which is what a hover actually costs. ~$8,800 — about the same money and weight as the 13 kWh battery it replaces, for 3.5x the energy. The engine is the cheap part ($1,800); the generator is what costs, because power density is the whole game.',
+ new THREE.Vector3(-500,-450,0), new THREE.Vector3(-520,box_h+380,0));
+window._genset=gensetG;
+{const EX=-520, EY=box_h+50;
+ // engine block
+ const blk=new THREE.Mesh(new THREE.BoxGeometry(360,330,340),M.batt);
+ blk.position.set(EX,EY+40,0); blk.castShadow=true; gensetG.add(blk);
+ // cylinder head + cooling fins
+ for(let i=-1;i<=1;i++){const fin=new THREE.Mesh(new THREE.BoxGeometry(330,14,300),M.silver);
+   fin.position.set(EX,EY+185+i*22,0); gensetG.add(fin);}
+ // generator — a pancake PM machine, coupled on the engine's output
+ const gen=new THREE.Mesh(new THREE.CylinderGeometry(105,105,95,28),M.gold);
+ gen.rotation.x=Math.PI/2; gen.position.set(EX-250,EY+40,0); gen.castShadow=true; gensetG.add(gen);
+ const genCase=new THREE.Mesh(new THREE.CylinderGeometry(112,112,26,28),M.carbonL);
+ genCase.rotation.x=Math.PI/2; genCase.position.set(EX-195,EY+40,0); gensetG.add(genCase);
+ // coupling shaft
+ gensetG.add(tube(new THREE.Vector3(EX-180,EY+40,0),new THREE.Vector3(EX-300,EY+40,0),26,M.silver));
+ // exhaust out of the aft body
+ let prev=new THREE.Vector3(EX,EY+150,150);
+ for(const pnt of [[EX-200,EY+120,200],[EX-500,EY+60,190],[EX-820,EY+20,120]]){
+   const v=new THREE.Vector3(...pnt); gensetG.add(tube(prev,v,32,M.silver)); prev=v;}
+}
+// RADIATOR — 60 kW of shaft power means roughly 120 kW of waste heat to throw away.
+// This is not a detail; it is one of the biggest new problems the engine brings.
+const radG=part('Radiator + cooling',900,'14 kg',
+ 'Sheds ~120 kW of waste heat — more power than the aircraft uses to fly. Sits in the rotor downwash, which is the one advantage of hanging it under a multirotor. Cooling is one of the three real costs of going hybrid; the others are vibration and an engine that can quit.',
+ new THREE.Vector3(-300,-350,0), new THREE.Vector3(-300,box_h+330,0));
+window._rad=radG;
+{for(const z of [-1,1]){
+   const core=new THREE.Mesh(new THREE.BoxGeometry(380,260,44),M.silver);
+   core.position.set(-300,box_h+180,z*300); core.castShadow=true; radG.add(core);
+   for(let i=0;i<7;i++){const f=new THREE.Mesh(new THREE.BoxGeometry(360,6,48),M.carbonL);
+     f.position.set(-300,box_h+70+i*36,z*300); radG.add(f);}}}
+// FUEL — low and central, ON the CG. Put it in the nose to balance the engine and the
+// aircraft would pitch as it burned off; here, running the tank dry barely moves the CG.
+const fuelG=part('Fuel — 5 gal',200,'14 kg (Part 103 EXEMPT)',
+ '19 litres of petrol = 172 kWh of thermal energy. The battery it replaces held 13 kWh. Part 103 counts batteries against the 254 lb limit but does NOT count fuel — that single line in the regulation is why the hybrid is worth the noise, the heat and the vibration. Sits on the CG so burning it off does not trim the aircraft.',
+ new THREE.Vector3(0,-600,0), new THREE.Vector3(-80,box_h-60,0));
+window._fuel=fuelG;
+{const t=new THREE.Mesh(new THREE.BoxGeometry(700,110,300),M.red);
+ t.position.set(-80,box_h-60,0); t.castShadow=true; fuelG.add(t);
+ const cap=new THREE.Mesh(new THREE.CylinderGeometry(34,34,30,16),M.silver);
+ cap.position.set(-80,box_h+5,0); fuelG.add(cap);}
+// BUFFER BATTERY — the part that keeps a hybrid honest.
+const bufG=part('Buffer battery — 2 kWh',1400,'10 kg',
+ 'A multirotor CANNOT autorotate. If the engine stops there is no glide — so this pack is not a peak-smoother, it is the difference between a landing and a parachute ride. It must carry full power for a complete descent from any point in the flight, and it also covers the takeoff surge the genset cannot follow instantly.',
+ new THREE.Vector3(300,-500,0), new THREE.Vector3(150,box_h-100,0));
+window._buf=bufG;
+{const b=new THREE.Mesh(new THREE.BoxGeometry(400,90,220),M.green);
+ b.position.set(150,box_h-100,0); b.castShadow=true; bufG.add(b);}
+
 // FLIGHT COMPUTER
 const fcG=part('Flight computer ×3',900,'0.8 kg',
  'THREE open-source flight controllers (CubePilot Orange+ running ArduPilot) voting — our DIY triple-redundancy. $900 vs an $18k proprietary box. The safety brain.',
@@ -698,21 +766,27 @@ function applyConfig(){
   // swap the pack in the bay (bay + rails stay sized for the BIG pack either way)
   if(window._pack){window._pack.geometry.dispose();window._pack.geometry=new THREE.BoxGeometry(...c.packBox);}
   M.shell.color.setHex(c.shellColor); M.shell.needsUpdate=true;
-  // the pusher MODULE is P1-only; the bolt face stays on both (P2 = pusher-ready)
-  if(window._pushMod) window._pushMod.visible=c.pusher;
+  // the pusher MODULE is P1/P3 only; the bolt face stays on all (P2 = pusher-ready)
   if(window._pushMod) window._pushMod.traverse(o=>o.visible=c.pusher);
-  batG.userData.info.name=`Quick-swap pack — ${c.kwh} kWh`;
+  // genset hardware only exists on the hybrid; the big pack only on the battery builds
+  for(const g of [window._genset, window._rad, window._fuel, window._buf])
+    if(g) g.traverse(o=>{ if(!o.userData.isLabel) o.visible=!!c.genset; });
+  if(window._pack) window._pack.visible=!c.genset;
+  batG.userData.info.name = c.genset ? 'Fuel tank (was the battery bay)' : `Quick-swap pack — ${c.kwh} kWh`;
   batG.userData.info.mass=`${c.packMass} kg`;
   batG.userData.info.spec=`${c.name}. Pack: ${c.kwh} kWh / ${c.packMass} kg → ${c.endur}. Legal lane: ${c.lane}. The bay, rails and connector are sized for the BIG pack in BOTH builds — swapping is a one-minute job, not a redesign.`;
   $('dims').innerHTML=`X8 coax · 14.0 ft across props · 8.5 ft long<br>~5.5 ft tall · <b>~${c.empty} kg empty</b>`;
   $('cfgLine').innerHTML=`<b>${c.name}</b><br>${c.kwh} kWh · ${c.packMass} kg pack · ${c.endur}<br><span style="opacity:.75">${c.lane}</span>`;
   const on='#5c3a12', onB='#a06a22', off='#163a63', offB='#2f6099';
-  $('cfgP1').style.background=CUR==='p1'?on:off; $('cfgP1').style.borderColor=CUR==='p1'?onB:offB;
-  $('cfgP2').style.background=CUR==='p2'?on:off; $('cfgP2').style.borderColor=CUR==='p2'?onB:offB;
-  $('cfgLine').style.background=CUR==='p1'?'rgba(90,60,20,.35)':'rgba(20,70,60,.35)';
+  for(const k of ['p1','p2','p3']){
+    const b=$('cfg'+k.toUpperCase());
+    b.style.background=CUR===k?on:off; b.style.borderColor=CUR===k?onB:offB;
+  }
+  $('cfgLine').style.background=CUR==='p1'?'rgba(90,60,20,.35)':(CUR==='p3'?'rgba(80,30,30,.35)':'rgba(20,70,60,.35)');
 }
 $('cfgP1').addEventListener('click',()=>{CUR='p1';applyConfig();});
 $('cfgP2').addEventListener('click',()=>{CUR='p2';applyConfig();});
+$('cfgP3').addEventListener('click',()=>{CUR='p3';applyConfig();});
 applyConfig();
 const VIEWS={front:[[4600,800,0],[0,500,0]], back:[[-4600,800,0],[0,500,0]],
              side:[[0,800,4600],[0,500,0]], top:[[0,5400,60],[0,500,0]]};
@@ -720,7 +794,11 @@ $('vF').addEventListener('click',()=>flyTo(...VIEWS.front));
 $('vB').addEventListener('click',()=>flyTo(...VIEWS.back));
 $('vS').addEventListener('click',()=>flyTo(...VIEWS.side));
 $('vT').addEventListener('click',()=>flyTo(...VIEWS.top));
-{const v=new URLSearchParams(location.search).get('view'); if(v&&VIEWS[v]) flyTo(...VIEWS[v]);}
+{const q=new URLSearchParams(location.search);
+ const v=q.get('view'); if(v&&VIEWS[v]) flyTo(...VIEWS[v]);
+ // ?xray=1 — see the guts. The hybrid's whole story is inside the hull.
+ if(q.get('xray')==='1'){ $('ghost').checked=true; $('ghost').dispatchEvent(new Event('change')); }
+ if(q.get('labels')==='1'){ $('labels').checked=true; $('labels').dispatchEvent(new Event('change')); }}
 controls.addEventListener('start',()=>{controls.autoRotate=false;$('spin').checked=false;});
 
 const ray=new THREE.Raycaster(),ptr=new THREE.Vector2();let down=null;
