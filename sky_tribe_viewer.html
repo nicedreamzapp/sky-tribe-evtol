@@ -332,11 +332,11 @@ const CFG = {
   // petrol engine turning a generator feeds the same 8 motors. Part 103 counts the
   // machinery but NOT the fuel, which is the whole reason this is worth doing:
   // +4 kg of counted weight buys 3.5x the energy.
-  p3: {name:'P3 — the hybrid', kwh:45, packMass:62, packBox:[700,110,300], empty:181,
+  p3: {name:'P3 — the hybrid', kwh:45, packMass:92, packBox:[700,110,300], empty:210,
        shellColor:0x4a5560, pusher:true, genset:true,
        lane:'Experimental amateur-built — 5 gal shown, but P1/P3 have NO fuel cap',
-       note:'Series hybrid: engine → generator → one DC bus → all 8 motors, every rotor still independently controlled. 5 gal of petrol = 172 kWh thermal ≈ 43 kWh electrical at 25%. The buffer battery is NOT a peak-smoother — a multirotor cannot autorotate, so it must carry a full landing if the engine quits.',
-       endur:'49 min hover · 62 min cruise · ~60 mi'},
+       note:'Series hybrid: engine → generator → one DC bus → all 8 motors, every rotor still independently controlled. 5 gal of petrol = 172 kWh thermal ≈ 43 kWh electrical at 25% → 49 min hover vs the battery\u2019s 12. HONEST COST: the full system is 92 kg (engine 42, generator 7, radiator 14, buffer 10, plus rectifier/mounts/exhaust/fuel system) vs 58 kg of battery — so +34 kg and +$2,500, NOT the \u201c+4 kg\u201d first claimed. All-up rises to 309 kg, which needs 70 kg/motor to fly.',
+       endur:'49 min hover · 62 min cruise · needs 70 kg/motor'},
 };
 let CUR = ['p2','p3'].includes(new URLSearchParams(location.search).get('cfg')) ? new URLSearchParams(location.search).get('cfg') : 'p1';
 const C = () => CFG[CUR];
@@ -599,7 +599,7 @@ const batG=part('Quick-swap battery bay',9000,'20-58 kg (pack)',
 // just aft of the seat back where the body is still deep. That puts a big mass aft,
 // which is why the fuel sits low and central rather than in the nose — and because
 // the fuel is near the CG, burning it off barely moves the balance.
-const gensetG=part('Hybrid genset — engine + generator',8800,'63 kg',
+const gensetG=part('Hybrid genset — engine + generator',8300,'59 kg (system: 92 kg)',
  'Salvage snowmobile-class engine (~90 kW, derated hard) turning an Emrax-class generator. ~60 kW shaft → ~52 kW electrical, which is what a hover actually costs. ~$8,800 — about the same money and weight as the 13 kWh battery it replaces, for 3.5x the energy. The engine is the cheap part ($1,800); the generator is what costs, because power density is the whole game.',
  new THREE.Vector3(-500,-450,0), new THREE.Vector3(-520,box_h+380,0));
 window._genset=gensetG;

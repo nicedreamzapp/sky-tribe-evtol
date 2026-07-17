@@ -31,7 +31,7 @@ const engFwd=-520+180;
 console.log(`${engFwd<-190?'OK  ':'FAIL'} engine front face at x=${engFwd} vs seat back x=-190 → ${(-190-engFwd).toFixed(0)}mm gap`);
 if(engFwd>=-190)f++;
 console.log("\n=== CG (rotors are centred on x=0) ===");
-const items=[["airframe",118,0],["pilot",85,150],["chute",9,-790],["engine+gen",49,-560],["fuel",14,-80],["buffer",10,150],["radiator",14,-300]];
+const items=[["airframe",118,0],["pilot",85,150],["chute",9,-790],["engine+gen+aux",59,-560],["fuel+system",20,-80],["buffer",10,150],["radiator",14,-300],["exhaust",3,-900]];
 const m=items.reduce((a,b)=>a+b[1],0), mo=items.reduce((a,b)=>a+b[1]*b[2],0);
 const cg=mo/m;
 console.log(`all-up ${m} kg, CG at x=${cg.toFixed(0)} mm  → front rotors carry ${(Math.abs(cg)/1025*100).toFixed(1)}% more than the rear`);
