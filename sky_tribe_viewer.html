@@ -577,7 +577,7 @@ for(const [f,s] of [[1,1],[1,-1],[-1,1],[-1,-1]]){
 
 // BATTERY — QUICK-SWAP BAY (Matt's call 2026-07-15: one bay, two legal packs)
 const batG=part('Quick-swap battery bay',9000,'20-58 kg (pack)',
- 'One bay sized for the BIGGEST pack, quick-release rails, one connector, same CG for every pack. Config A (Part 103, no license): 5 kWh pack, 20 kg, ~8 min. Config B (Experimental/MOSAIC, licensed pilot): 13 kWh pack, 58 kg, ~15 min. Both are short — endurance, not speed, is this aircraft's real problem. Same airframe, both legal.',
+ 'One bay sized for the BIGGEST pack, quick-release rails, one connector, same CG for every pack. Config A (Part 103, no license): 5 kWh pack, 20 kg, ~8 min. Config B (Experimental/MOSAIC, licensed pilot): 13 kWh pack, 58 kg, ~15 min. Both are short — endurance, not speed, is the real problem here. Same airframe, both legal.',
  new THREE.Vector3(0,-750,0),new THREE.Vector3(-80,box_h-65,0));
 {const b=new THREE.Mesh(new THREE.BoxGeometry(...C().packBox),M.batt);b.position.set(-80,box_h-65,0);b.castShadow=true;b.userData.isPack=true;batG.add(b);window._pack=b;
  // swap rails along both sides of the bay — ALWAYS sized for the BIG pack, so either drops in
