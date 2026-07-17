@@ -49,6 +49,27 @@ P1 exists so the program isn't hostage to the 254 lb limit. P2 is the machine an
 - **Foiling doesn't close.** It floats and flies off water today — that part is sound. But the water pod is under-powered for the takeoff hump (~2.2 kW needed, ~2 kW modelled) and the foil is not yet a real cambered section. Foiling is Phase 2.
 - Jetson ONE proves 253 lb *is* achievable, so the P2 target is real.
 
+## What it costs — honestly
+The parts list is not the project. Both numbers matter, and they are far apart.
+
+| | |
+|---|---|
+| **P1 — one aircraft, parts only** | **~$46,600** (up to ~$53,800 if the motors land at U15XXL-class) |
+| P2 — lighter build, smaller pack, no pusher | ~$39,600 |
+| P3 — same airframe, battery swapped for the genset | ~$49,100 |
+| **P1 actually flying, all in** | **~$82,600** |
+| Whole program (P1 + P2 + genset conversion) | ~$139,700 |
+
+The gap between $46,600 and $82,600 is everything a parts list quietly omits: the
+thrust stand, tether rig and ballast; carbon moulds, vacuum and consumables;
+machining the spar box; wiring and HV safety gear; telemetry; spares; and an
+**$8,000 crash allowance**, because M2 and M3 exist precisely to break things.
+Labour is $0 — it assumes you build it yourself.
+
+**The cheapest useful thing you can do is ~$5,300**: one motor, one prop, one ESC and
+a thrust stand. That is M1, and it answers whether any of this flies before the big
+money moves. Vendor numbers die on the stand. See `project_cost.mjs`.
+
 ## Safety comes before any human ever flies it
 **No person goes aboard until this is proven safe** — unmanned first, then ballasted, across many loads and conditions. The build order is non-negotiable:
 
