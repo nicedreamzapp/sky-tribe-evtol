@@ -1,6 +1,10 @@
 # Sky Tribe — Open Amphibious Personal eVTOL
 *A single-seat electric flying machine that lands on water and takes off again. Designed and built in America, given away to everyone.*
 
+**In one sentence:** Sky Tribe is an open-source design for a one-person electric VTOL aircraft that floats, with an interactive 3D CAD viewer and runnable Node scripts that check its geometry, performance and cost.
+
+**Stage:** design and analysis. Nothing has been built or flown yet; the first hardware step (M1, one motor on a thrust stand) is still ahead.
+
 ![Sky Tribe P1 — side](v2_side.png)
 
 > **Mission:** This project is about freedom of movement, not force. Quiet electric flight. Fewer barriers between people and places. A machine that treats the ocean as a friend — never a weapon. We build it to unite, to explore, and to give people more free will in how they move through the world.
@@ -8,6 +12,25 @@
 | | |
 |---|---|
 | ![front](v2_front.png) | ![back](v2_back.png) |
+
+**Proof you can run in a minute** (Node.js only, no npm install):
+```bash
+node geometry_audit.mjs     # 19 clearance checks, 0 FAIL, 0 WARN
+node performance_model.mjs  # hover, endurance and range for P1 and P2
+node project_cost.mjs       # parts, hidden costs, whole-program total
+```
+Then open `sky_tribe_viewer.html` in a browser to spin the CAD.
+
+## What I built (Matt Macosko)
+- **Interactive CAD viewer:** [`sky_tribe_viewer.html`](sky_tribe_viewer.html), with P1 / P2 / P3 configs, click-a-part price and spec cards, a narrated tour (`?present=1`) and PNG export (`?shot=1`). Shortcuts: [`sky_tribe_P1_heavy.html`](sky_tribe_P1_heavy.html), [`sky_tribe_P2_light.html`](sky_tribe_P2_light.html)
+- **Geometry audits:** [`geometry_audit.mjs`](geometry_audit.mjs) (+ [`geometry_audit.html`](geometry_audit.html)), [`interior_audit.mjs`](interior_audit.mjs), [`hybrid_audit.mjs`](hybrid_audit.mjs)
+- **Performance model:** [`performance_model.mjs`](performance_model.mjs) (hover power, max endurance, best-range speed)
+- **Hybrid genset analysis:** [`hybrid_energy_model.mjs`](hybrid_energy_model.mjs), [`hybrid_bom.mjs`](hybrid_bom.mjs)
+- **Cost and build order:** [`project_cost.mjs`](project_cost.mjs), [`build_order.mjs`](build_order.mjs), [`PARTS_LIST_BOM.md`](PARTS_LIST_BOM.md)
+- **Research:** five rounds in [`RESEARCH_REPORT_*.md`](RESEARCH_REPORT_2026-07-13.md), plus [`WATER_STANCE.md`](WATER_STANCE.md)
+- **Design history:** OpenSCAD models [`manned_quad_v2.scad`](manned_quad_v2.scad) through [`manned_quad_v7.scad`](manned_quad_v7.scad)
+
+Upstream: 3D rendering uses [three.js](https://threejs.org/) (loaded from a CDN). The planned flight stack is upstream [ArduPilot](https://ardupilot.org/) / [PX4](https://px4.io/); see [`CREDITS.md`](CREDITS.md).
 
 ## What this is
 A fully open-source design for a **single-seat coaxial-X8 electric VTOL** — eight motors on four arms — that is sealed and buoyant so it can **land on water and take off again**, like the waterproof RC drones, scaled up to carry one person.
@@ -35,7 +58,7 @@ P1 exists so the program isn't hostage to the 254 lb limit. P2 is the machine an
 - **Propulsion:** coaxial **X8** — 8 motors, 4 arms, 2× 62" counter-rotating props per arm, ~33 kg/m² disk loading
 - **Why X8:** a flat quad has **no motor-out capability** — one dead motor or ESC and it is uncontrollable. The literature is blunt about it: a single-rotor failure on a manned quad is catastrophic, quads show the highest failure rate of the configurations studied, and **at least eight rotors** is what satisfies motor-out safety. A standard hexacopter is *not* fault-tolerant either — six rotors buys nothing.
 - **Structure:** central carbon spar box carries all four arms, the seat and the gear. Booms **dog-leg outboard low, then climb** — nothing crosses the canopy. Each boom is braced from *below* by a keel strut, like a braced-wing aircraft's lift strut.
-- **Flight control:** DIY triple-redundant, built on open-source **ArduPilot/PX4** across 3 voting boards — not an $18k proprietary box
+- **Flight control:** DIY triple-redundant, built on open-source **ArduPilot/PX4** across 3 voting boards — not an $18k proprietary box. This is the plan; the voting code is not in this repo yet.
 - **Water:** sealed buoyant hull (**650 L against 261 L displaced — 2.5× reserve**), motors high, floats then flies. Never powers up through the surface.
 - **Safety:** whole-aircraft ballistic parachute (Part 103 weight-exempt)
 
@@ -47,6 +70,7 @@ P1 exists so the program isn't hostage to the 254 lb limit. P2 is the machine an
 - **Thrust-to-weight is the live risk.** At 50 kg/motor P1 is only 1.35 — and 1.18 with a motor out. It needs **60–70 kg/motor**. **M1 (thrust-standing one motor) is the gate that decides whether P1 flies at all.**
 - **P2 is ~9 kg over** the 115.2 kg Part 103 limit as drawn. The carbon layup has to close that gap.
 - **Foiling doesn't close.** It floats and flies off water today — that part is sound. But the water pod is under-powered for the takeoff hump (~2.2 kW needed, ~2 kW modelled) and the foil is not yet a real cambered section. Foiling is Phase 2.
+- **No flight-control code, test data or hardware exists yet.** Everything here is CAD, models and research.
 - Jetson ONE proves 253 lb *is* achievable, so the P2 target is real.
 
 ## What it costs — honestly
@@ -99,7 +123,7 @@ anyway. See `build_order.mjs`.
 `geometry_audit.mjs` checks the whole craft numerically — every boom and strut sampled along its length against the canopy, prop and rotor clearances, the coax spacing rule, gear-to-ground, pilot sightlines and headroom, battery fit at its **actual height**, and pusher clearances.
 
 ```bash
-node geometry_audit.mjs     # 20/20
+node geometry_audit.mjs     # 19 checks, 0 FAIL, 0 WARN
 ```
 
 It exists because eyeballing kept missing real defects: arms passing through the canopy glass, a battery hanging out through the belly, the pilot's feet outside the fuselage, and a cockpit sill sitting *above* the pilot's eye line.
@@ -110,12 +134,15 @@ It exists because eyeballing kept missing real defects: arms passing through the
 | `sky_tribe_viewer.html` | **The live CAD.** Interactive, photoreal, click any part for its price and spec |
 | `sky_tribe_P1_heavy.html` / `sky_tribe_P2_light.html` | Open the CAD locked to either configuration |
 | `geometry_audit.mjs` / `geometry_audit.html` | Automated clearance + interference audit |
+| `interior_audit.mjs` / `hybrid_audit.mjs` | Cockpit parts and genset hardware fit inside the skin |
+| `performance_model.mjs` / `hybrid_energy_model.mjs` | Hover, endurance, range; what fuel is worth |
+| `project_cost.mjs` / `build_order.mjs` / `hybrid_bom.mjs` | Cost, staged spend, genset parts and mass |
 | `PARTS_LIST_BOM.md` | Bill of materials (**being refreshed for the X8**) |
 | `RESEARCH_REPORT_*.md` | Five rounds of fact-checked research, adversarially verified |
 | `manned_quad_v2..v7.scad` | Design history (superseded by the viewer) |
 
-**View the CAD:** open `sky_tribe_viewer.html` in any browser — no install, no account.
-`?cfg=p1|p2` picks a configuration · `?present=1` runs a narrated tour · `?shot=1` renders a PNG
+**View the CAD:** open `sky_tribe_viewer.html` in any browser — no install, no account. It needs an internet connection, because three.js loads from unpkg.
+`?cfg=p1|p2|p3` picks a configuration · `?present=1` runs a narrated tour · `?shot=1` renders a PNG
 
 ## How to contribute
 Anyone may use, study, modify, and share this design. Improvements that keep it open are welcome — especially the weight budget, the redundant flight-control code, water sealing at scale, and the foil section. **Test data is as valuable as design changes.** No weapons work.
