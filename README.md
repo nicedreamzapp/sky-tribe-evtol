@@ -21,7 +21,10 @@ node project_cost.mjs       # parts, hidden costs, whole-program total
 ```
 Then open `sky_tribe_viewer.html` in a browser to spin the CAD.
 
-## What I built (Matt Macosko)
+<a id="what-i-built"></a>
+<picture><source media="(max-width: 610px), (min-width: 768px) and (max-width: 895px)" srcset="https://raw.githubusercontent.com/nicedreamzapp/sky-tribe-evtol/main/assets/readme/s01-banner-m.svg"><source media="(max-width: 1149px)" srcset="https://raw.githubusercontent.com/nicedreamzapp/sky-tribe-evtol/main/assets/readme/s01-banner-mid.svg"><img src="https://raw.githubusercontent.com/nicedreamzapp/sky-tribe-evtol/main/assets/readme/s01-banner.svg" width="100%" alt="01. What I built. A CAD viewer, audits and models you can run"></picture>
+<picture><source media="(max-width: 610px), (min-width: 768px) and (max-width: 895px)" srcset="https://raw.githubusercontent.com/nicedreamzapp/sky-tribe-evtol/main/assets/readme/s01-r1-m.svg"><source media="(max-width: 1149px)" srcset="https://raw.githubusercontent.com/nicedreamzapp/sky-tribe-evtol/main/assets/readme/s01-r1-mid.svg"><img src="https://raw.githubusercontent.com/nicedreamzapp/sky-tribe-evtol/main/assets/readme/s01-r1.svg" width="100%" alt="Interactive CAD viewer. P1, P2 and P3 configs, click-a-part price and spec cards, a narrated tour and PNG export. Geometry audits. 19 clearance checks, 0 FAIL, 0 WARN. Runs with Node only. Performance and cost models. Hover power, endurance and range, plus parts, hidden costs and build order."></picture>
+
 - **Interactive CAD viewer:** [`sky_tribe_viewer.html`](sky_tribe_viewer.html), with P1 / P2 / P3 configs, click-a-part price and spec cards, a narrated tour (`?present=1`) and PNG export (`?shot=1`). Shortcuts: [`sky_tribe_P1_heavy.html`](sky_tribe_P1_heavy.html), [`sky_tribe_P2_light.html`](sky_tribe_P2_light.html)
 - **Geometry audits:** [`geometry_audit.mjs`](geometry_audit.mjs) (+ [`geometry_audit.html`](geometry_audit.html)), [`interior_audit.mjs`](interior_audit.mjs), [`hybrid_audit.mjs`](hybrid_audit.mjs)
 - **Performance model:** [`performance_model.mjs`](performance_model.mjs) (hover power, max endurance, best-range speed)
@@ -32,14 +35,20 @@ Then open `sky_tribe_viewer.html` in a browser to spin the CAD.
 
 Upstream: 3D rendering uses [three.js](https://threejs.org/) (loaded from a CDN). The planned flight stack is upstream [ArduPilot](https://ardupilot.org/) / [PX4](https://px4.io/); see [`CREDITS.md`](CREDITS.md).
 
-## What this is
+<img src="https://raw.githubusercontent.com/nicedreamzapp/sky-tribe-evtol/main/assets/readme/s01-rule.svg" width="100%" alt="">
+
+<a id="what-this-is"></a>
+<picture><source media="(max-width: 610px), (min-width: 768px) and (max-width: 895px)" srcset="https://raw.githubusercontent.com/nicedreamzapp/sky-tribe-evtol/main/assets/readme/s02-banner-m.svg"><source media="(max-width: 1149px)" srcset="https://raw.githubusercontent.com/nicedreamzapp/sky-tribe-evtol/main/assets/readme/s02-banner-mid.svg"><img src="https://raw.githubusercontent.com/nicedreamzapp/sky-tribe-evtol/main/assets/readme/s02-banner.svg" width="100%" alt="02. What this is. Two aircraft, one airframe"></picture>
+<picture><source media="(max-width: 610px), (min-width: 768px) and (max-width: 895px)" srcset="https://raw.githubusercontent.com/nicedreamzapp/sky-tribe-evtol/main/assets/readme/s02-r1-m.svg"><source media="(max-width: 1149px)" srcset="https://raw.githubusercontent.com/nicedreamzapp/sky-tribe-evtol/main/assets/readme/s02-r1-mid.svg"><img src="https://raw.githubusercontent.com/nicedreamzapp/sky-tribe-evtol/main/assets/readme/s02-r1.svg" width="100%" alt="8 motors coaxial X8 on four arms, single seat. ~176 kg P1 empty weight. The learning machine. Flies first. Weight is not a constraint. ~124 kg P2 empty weight. The low-cost lightweight one, in the Part 103 ultralight lane."></picture>
+
 A fully open-source design for a **single-seat coaxial-X8 electric VTOL** — eight motors on four arms — that is sealed and buoyant so it can **land on water and take off again**, like the waterproof RC drones, scaled up to carry one person.
 
 Everything is open: the CAD, the parts list, the flight-control approach, and the research behind every decision. No proprietary black boxes. If someone already gave their work away (open-source flight software, published physics), we build on it and give ours away too.
 
 **Every number below is one we can defend, including the ones that hurt.**
 
-## Two aircraft, one airframe
+### Two aircraft, one airframe
+
 The weight limit was blocking everything, so we stopped letting it. Same airframe, same X8, same quick-swap battery bay — two configurations in two different legal lanes.
 
 | | **P1 — "the fat crazy one"** | **P2 — "the low-cost lightweight one"** |
@@ -54,7 +63,14 @@ The weight limit was blocking everything, so we stopped letting it. Same airfram
 
 P1 exists so the program isn't hostage to the 254 lb limit. P2 is the machine anyone can legally fly.
 
-## Current design
+<img src="https://raw.githubusercontent.com/nicedreamzapp/sky-tribe-evtol/main/assets/readme/s02-rule.svg" width="100%" alt="">
+
+<a id="design"></a>
+<picture><source media="(max-width: 610px), (min-width: 768px) and (max-width: 895px)" srcset="https://raw.githubusercontent.com/nicedreamzapp/sky-tribe-evtol/main/assets/readme/s03-banner-m.svg"><source media="(max-width: 1149px)" srcset="https://raw.githubusercontent.com/nicedreamzapp/sky-tribe-evtol/main/assets/readme/s03-banner-mid.svg"><img src="https://raw.githubusercontent.com/nicedreamzapp/sky-tribe-evtol/main/assets/readme/s03-banner.svg" width="100%" alt="03. Current design and honest status. What is sound and what does not close yet"></picture>
+<picture><source media="(max-width: 610px), (min-width: 768px) and (max-width: 895px)" srcset="https://raw.githubusercontent.com/nicedreamzapp/sky-tribe-evtol/main/assets/readme/s03-r1-m.svg"><source media="(max-width: 1149px)" srcset="https://raw.githubusercontent.com/nicedreamzapp/sky-tribe-evtol/main/assets/readme/s03-r1-mid.svg"><img src="https://raw.githubusercontent.com/nicedreamzapp/sky-tribe-evtol/main/assets/readme/s03-r1.svg" width="100%" alt="~52 kW hover draw at P1&#x27;s 261 kg all-up. 1.35 P1 thrust-to-weight at 50 kg/motor. 49 min hover with a genset, against 12."></picture>
+
+### Current design
+
 - **Propulsion:** coaxial **X8** — 8 motors, 4 arms, 2× 62" counter-rotating props per arm, ~33 kg/m² disk loading
 - **Why X8:** a flat quad has **no motor-out capability** — one dead motor or ESC and it is uncontrollable. The literature is blunt about it: a single-rotor failure on a manned quad is catastrophic, quads show the highest failure rate of the configurations studied, and **at least eight rotors** is what satisfies motor-out safety. A standard hexacopter is *not* fault-tolerant either — six rotors buys nothing.
 - **Structure:** central carbon spar box carries all four arms, the seat and the gear. Booms **dog-leg outboard low, then climb** — nothing crosses the canopy. Each boom is braced from *below* by a keel strut, like a braced-wing aircraft's lift strut.
@@ -62,7 +78,8 @@ P1 exists so the program isn't hostage to the 254 lb limit. P2 is the machine an
 - **Water:** sealed buoyant hull (**650 L against 261 L displaced — 2.5× reserve**), motors high, floats then flies. Never powers up through the surface.
 - **Safety:** whole-aircraft ballistic parachute (Part 103 weight-exempt)
 
-## Honest status — what does not close yet
+### Honest status — what does not close yet
+
 - **Hover draws ~52 kW at P1's 261 kg all-up**, not the ~25 kW quoted early on. That figure was for a lighter quad, ignored the 9–15% coax penalty, and quoted shaft power rather than what the battery actually pays.
 - **Endurance is the real problem, not speed.** P1 flies **15 minutes** and **15 miles**; P2 flies **8 minutes** and **6.6 miles**. These are hop-across-the-bay machines, not tourers.
 - **Top speed is capped by the rotors, not power.** Past roughly **67 mph** (advance ratio 0.25) the advancing blade runs out of tip margin while the retreating blade loses grip. A pusher does *not* raise that ceiling — it buys a level cruise attitude and better efficiency, nothing more.
@@ -73,7 +90,12 @@ P1 exists so the program isn't hostage to the 254 lb limit. P2 is the machine an
 - **No flight-control code, test data or hardware exists yet.** Everything here is CAD, models and research.
 - Jetson ONE proves 253 lb *is* achievable, so the P2 target is real.
 
-## What it costs — honestly
+<img src="https://raw.githubusercontent.com/nicedreamzapp/sky-tribe-evtol/main/assets/readme/s03-rule.svg" width="100%" alt="">
+
+<a id="cost"></a>
+<picture><source media="(max-width: 610px), (min-width: 768px) and (max-width: 895px)" srcset="https://raw.githubusercontent.com/nicedreamzapp/sky-tribe-evtol/main/assets/readme/s04-banner-m.svg"><source media="(max-width: 1149px)" srcset="https://raw.githubusercontent.com/nicedreamzapp/sky-tribe-evtol/main/assets/readme/s04-banner-mid.svg"><img src="https://raw.githubusercontent.com/nicedreamzapp/sky-tribe-evtol/main/assets/readme/s04-banner.svg" width="100%" alt="04. What it costs. The parts list is not the project"></picture>
+<picture><source media="(max-width: 610px), (min-width: 768px) and (max-width: 895px)" srcset="https://raw.githubusercontent.com/nicedreamzapp/sky-tribe-evtol/main/assets/readme/s04-r1-m.svg"><source media="(max-width: 1149px)" srcset="https://raw.githubusercontent.com/nicedreamzapp/sky-tribe-evtol/main/assets/readme/s04-r1-mid.svg"><img src="https://raw.githubusercontent.com/nicedreamzapp/sky-tribe-evtol/main/assets/readme/s04-r1.svg" width="100%" alt="~$46,600 P1, one aircraft, parts only. ~$82,600 P1 actually flying, all in. ~$5,300 M1: one motor on a stand."></picture>
+
 The parts list is not the project. Both numbers matter, and they are far apart.
 
 | | |
@@ -109,7 +131,12 @@ defer** until the aircraft has already hovered thousands of times. Build the pla
 Fly it empty. Add the human last — which is exactly what the safety ladder demanded
 anyway. See `build_order.mjs`.
 
-## Safety comes before any human ever flies it
+<img src="https://raw.githubusercontent.com/nicedreamzapp/sky-tribe-evtol/main/assets/readme/s04-rule.svg" width="100%" alt="">
+
+<a id="safety"></a>
+<picture><source media="(max-width: 610px), (min-width: 768px) and (max-width: 895px)" srcset="https://raw.githubusercontent.com/nicedreamzapp/sky-tribe-evtol/main/assets/readme/s05-banner-m.svg"><source media="(max-width: 1149px)" srcset="https://raw.githubusercontent.com/nicedreamzapp/sky-tribe-evtol/main/assets/readme/s05-banner-mid.svg"><img src="https://raw.githubusercontent.com/nicedreamzapp/sky-tribe-evtol/main/assets/readme/s05-banner.svg" width="100%" alt="05. Safety and audits. Proven before any human flies it"></picture>
+<picture><source media="(max-width: 610px), (min-width: 768px) and (max-width: 895px)" srcset="https://raw.githubusercontent.com/nicedreamzapp/sky-tribe-evtol/main/assets/readme/s05-r1-m.svg"><source media="(max-width: 1149px)" srcset="https://raw.githubusercontent.com/nicedreamzapp/sky-tribe-evtol/main/assets/readme/s05-r1-mid.svg"><img src="https://raw.githubusercontent.com/nicedreamzapp/sky-tribe-evtol/main/assets/readme/s05-r1.svg" width="100%" alt="No person aboard until proven safe. Unmanned first, then ballasted, across many loads and conditions. M1 is the gate. Vendor numbers die on the thrust stand. Audited, not eyeballed. Numeric clearance checks on the whole craft."></picture>
+
 **No person goes aboard until this is proven safe** — unmanned first, then ballasted, across many loads and conditions. The build order is non-negotiable:
 
 1. **M0** — Close the weight budget on paper
@@ -119,7 +146,8 @@ anyway. See `build_order.mjs`.
 5. **M4** — Manned, tethered, over water
 6. **M5** — Free flight over water
 
-## Geometry is audited, not eyeballed
+### Geometry is audited, not eyeballed
+
 `geometry_audit.mjs` checks the whole craft numerically — every boom and strut sampled along its length against the canopy, prop and rotor clearances, the coax spacing rule, gear-to-ground, pilot sightlines and headroom, battery fit at its **actual height**, and pusher clearances.
 
 ```bash
@@ -128,7 +156,14 @@ node geometry_audit.mjs     # 19 checks, 0 FAIL, 0 WARN
 
 It exists because eyeballing kept missing real defects: arms passing through the canopy glass, a battery hanging out through the belly, the pilot's feet outside the fuselage, and a cockpit sill sitting *above* the pilot's eye line.
 
-## Repository map
+<img src="https://raw.githubusercontent.com/nicedreamzapp/sky-tribe-evtol/main/assets/readme/s05-rule.svg" width="100%" alt="">
+
+<a id="repo"></a>
+<picture><source media="(max-width: 610px), (min-width: 768px) and (max-width: 895px)" srcset="https://raw.githubusercontent.com/nicedreamzapp/sky-tribe-evtol/main/assets/readme/s06-banner-m.svg"><source media="(max-width: 1149px)" srcset="https://raw.githubusercontent.com/nicedreamzapp/sky-tribe-evtol/main/assets/readme/s06-banner-mid.svg"><img src="https://raw.githubusercontent.com/nicedreamzapp/sky-tribe-evtol/main/assets/readme/s06-banner.svg" width="100%" alt="06. Repository, contributing and license. Open so it can never be locked up"></picture>
+<picture><source media="(max-width: 610px), (min-width: 768px) and (max-width: 895px)" srcset="https://raw.githubusercontent.com/nicedreamzapp/sky-tribe-evtol/main/assets/readme/s06-r1-m.svg"><source media="(max-width: 1149px)" srcset="https://raw.githubusercontent.com/nicedreamzapp/sky-tribe-evtol/main/assets/readme/s06-r1-mid.svg"><img src="https://raw.githubusercontent.com/nicedreamzapp/sky-tribe-evtol/main/assets/readme/s06-r1.svg" width="100%" alt="CERN-OHL-S Hardware / CAD. CERN-OHL-S-2.0, strongly reciprocal. GPL-3.0 Software. GPL-3.0. CC-BY-SA Documentation and research. CC-BY-SA-4.0."></picture>
+
+### Repository map
+
 | File | What it is |
 |------|-----------|
 | `sky_tribe_viewer.html` | **The live CAD.** Interactive, photoreal, click any part for its price and spec |
@@ -144,13 +179,17 @@ It exists because eyeballing kept missing real defects: arms passing through the
 **View the CAD:** open `sky_tribe_viewer.html` in any browser — no install, no account. It needs an internet connection, because three.js loads from unpkg.
 `?cfg=p1|p2|p3` picks a configuration · `?present=1` runs a narrated tour · `?shot=1` renders a PNG
 
-## How to contribute
+### How to contribute
+
 Anyone may use, study, modify, and share this design. Improvements that keep it open are welcome — especially the weight budget, the redundant flight-control code, water sealing at scale, and the foil section. **Test data is as valuable as design changes.** No weapons work.
 
-## License
+### License
+
 Open hardware and open source, chosen so it can **never be locked up**:
 - **Hardware / CAD:** [CERN-OHL-S-2.0](https://ohwr.org/cern_ohl_s_v2.txt) (strongly reciprocal — derivatives stay open)
 - **Software:** [GPL-3.0](https://www.gnu.org/licenses/gpl-3.0.txt)
 - **Documentation / research:** [CC-BY-SA-4.0](https://creativecommons.org/licenses/by-sa/4.0/)
 
 You are free to build one. You are not free to take it private.
+
+<img src="https://raw.githubusercontent.com/nicedreamzapp/sky-tribe-evtol/main/assets/readme/s06-rule.svg" width="100%" alt="">
